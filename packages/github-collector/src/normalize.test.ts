@@ -15,6 +15,7 @@ describe("normalizeRepository", () => {
 
     expect(repository.stars).toBe(100);
     expect(repository.subscribers).toBe(7);
+    expect(repository.hasIssues).toBe(true);
     expect(repository).not.toHaveProperty("watchersCount");
   });
 

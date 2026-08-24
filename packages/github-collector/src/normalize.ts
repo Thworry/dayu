@@ -14,6 +14,7 @@ export interface GitHubRepository {
   open_issues_count: number;
   archived: boolean;
   fork: boolean;
+  has_issues: boolean;
   is_template: boolean;
   created_at: string;
   updated_at: string;
@@ -31,6 +32,7 @@ export interface NormalizedRepository {
   openIssues: number;
   archived: boolean;
   fork: boolean;
+  hasIssues: boolean;
   isTemplate: boolean;
   createdAt: string;
   updatedAt: string;
@@ -74,7 +76,7 @@ export function normalizeRepository(input: unknown): NormalizedRepository {
   const pushedAt = input.pushed_at;
   if (pushedAt !== null && typeof pushedAt !== "string") throw new Error("invalid_repository_metadata");
 
-  for (const key of ["private", "archived", "fork", "is_template"] as const) {
+  for (const key of ["private", "archived", "fork", "has_issues", "is_template"] as const) {
     if (typeof input[key] !== "boolean") throw new Error("invalid_repository_metadata");
   }
 
@@ -85,6 +87,7 @@ export function normalizeRepository(input: unknown): NormalizedRepository {
     fork: input.fork as boolean,
     forks: requiredCount(input, "forks_count"),
     fullName,
+    hasIssues: input.has_issues as boolean,
     id: input.id as number,
     isTemplate: input.is_template as boolean,
     openIssues: requiredCount(input, "open_issues_count"),

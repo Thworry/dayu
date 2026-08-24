@@ -1,6 +1,7 @@
 {
   "id": 10270250,
   "full_name": "facebook/react",
+  "has_issues": true,
   "private": false,
   "default_branch": "main",
   "stargazers_count": 238000,

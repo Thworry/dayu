@@ -272,6 +272,7 @@ export async function collectPublicRepository(
     defaultBranch: repository.defaultBranch,
     fork: repository.fork,
     forks: repository.forks,
+    hasIssues: repository.hasIssues,
     isTemplate: repository.isTemplate,
     openIssues: repository.openIssues,
     pushedAt: repository.pushedAt,
