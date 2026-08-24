@@ -1,0 +1,30 @@
+{
+  "name": "@dayu/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dayu/evidence-schema": "workspace:*",
+    "@dayu/report-i18n": "workspace:*",
+    "@vitejs/plugin-react": "^5.0.4",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "vite": "^7.3.6"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@testing-library/user-event": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "jsdom": "latest",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

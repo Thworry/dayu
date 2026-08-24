@@ -1,5 +1,4 @@
 export {
-  createEvidenceId,
   dataStatusSchema,
   evidenceEnvelopeSchema,
   evidenceKindSchema,
@@ -11,9 +10,11 @@ export type {
   DataStatus,
   Evidence,
   EvidenceEnvelope,
-  EvidenceIdInput,
   JsonValue,
 } from "./evidence.js";
+
+export { createEvidenceId } from "./evidence-id.js";
+export type { EvidenceIdInput } from "./evidence-id.js";
 
 export {
   dimensionSchema,

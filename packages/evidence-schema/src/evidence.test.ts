@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createEvidenceId, evidenceSchema } from "./evidence.js";
+import { createEvidenceId } from "./evidence-id.js";
+import { evidenceSchema } from "./evidence.js";
 
 describe("Evidence", () => {
   it("creates a stable id for the same pinned source", () => {
