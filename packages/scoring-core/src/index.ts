@@ -13,4 +13,5 @@ export type {
   RulesReport,
   ScorePart,
   ScoreRulesInput,
+  ScoringCaveat,
 } from "./types.js";

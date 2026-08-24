@@ -1,18 +1,21 @@
 {
-  "name": "@dayu/report-i18n",
+  "name": "@dayu/share-card",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/render.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@dayu/evidence-schema": "workspace:*",
+    "@dayu/report-i18n": "workspace:*"
+  },
   "devDependencies": {
-    "@dayu/scoring-core": "workspace:*",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

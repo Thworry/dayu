@@ -15,8 +15,13 @@ describe("normalizeRepository", () => {
 
     expect(repository.stars).toBe(100);
     expect(repository.subscribers).toBe(7);
+    expect(repository.description).toBeNull();
     expect(repository.hasIssues).toBe(true);
     expect(repository).not.toHaveProperty("watchersCount");
+  });
+
+  it("keeps a public repository description for the evidence report", () => {
+    expect(normalizeRepository({ ...fixture, description: "A UI library" }).description).toBe("A UI library");
   });
 
   it("rejects malformed repository metadata", () => {

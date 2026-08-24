@@ -19,12 +19,27 @@ function contrast(foreground: string, background: string): number {
 describe("scan color tokens", () => {
   it("keeps river-colored small text above WCAG AA contrast", () => {
     const webRoot = basename(process.cwd()) === "web" ? process.cwd() : resolve(process.cwd(), "apps/web");
-    const css = readFileSync(resolve(webRoot, "src/styles/scan.css"), "utf8");
+    const css = readFileSync(resolve(webRoot, "src/styles/tokens.css"), "utf8");
     const riverText = /--river-text:\s*(#[a-f\d]{6})/iu.exec(css)?.[1];
     const paper = /--paper:\s*(#[a-f\d]{6})/iu.exec(css)?.[1];
 
     expect(riverText).toBeDefined();
     expect(paper).toBeDefined();
     expect(contrast(riverText ?? "#ffffff", paper ?? "#ffffff")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps instrument panels and primary actions readable in light and dark modes", () => {
+    const webRoot = basename(process.cwd()) === "web" ? process.cwd() : resolve(process.cwd(), "apps/web");
+    const css = readFileSync(resolve(webRoot, "src/styles/tokens.css"), "utf8");
+    const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
+    const light = css.slice(0, darkStart);
+    const dark = css.slice(darkStart);
+    const token = (source: string, name: string): string => new RegExp(`--${name}:\\s*(#[a-f\\d]{6})`, "iu").exec(source)?.[1] ?? "#ffffff";
+
+    for (const source of [light, dark]) {
+      expect(contrast(token(source, "panel-ink-fg"), token(source, "panel-ink-bg"))).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(token(source, "action-fg"), token(source, "action-bg"))).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(token(source, "placeholder"), token(source, "surface-raised"))).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

@@ -270,6 +270,7 @@ export async function collectPublicRepository(
     archived: repository.archived,
     createdAt: repository.createdAt,
     defaultBranch: repository.defaultBranch,
+    description: repository.description,
     fork: repository.fork,
     forks: repository.forks,
     hasIssues: repository.hasIssues,

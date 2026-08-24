@@ -178,7 +178,7 @@ describe("HomePage", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<ScanPage locale="en" owner="facebook" repo="react" />);
 
-    expect(await screen.findByText("Rules report ready")).toBeVisible();
+    expect(await screen.findByText("Rules-only Signal")).toBeVisible();
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(1);
   });
 

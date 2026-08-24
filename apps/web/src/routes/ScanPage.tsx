@@ -7,6 +7,7 @@ import { PartialEvidence } from "../components/PartialEvidence.js";
 import { ScanProgress } from "../components/ScanProgress.js";
 import { SiteShell } from "../components/SiteShell.js";
 import { localizedFailure, type ScanViewState } from "./HomePage.js";
+import { ReportPage } from "./ReportPage.js";
 
 export interface ScanPageProps {
   api?: ScanApi;
@@ -57,6 +58,7 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialReport
 
   return (
     <SiteShell locale={locale} repositoryPath={`/r/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`}>
+      {state.kind === "report" ? <ReportPage locale={locale} report={state.report} /> : (
       <main className="scan-main">
         <p className="eyebrow"><span aria-hidden="true" />{t(locale, "home.eyebrow")}</p>
         <h1>{t(locale, "scan.heading", { repository })}</h1>
@@ -71,15 +73,9 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialReport
           </div>
         ) : null}
         {state.kind === "error" && state.partial !== undefined ? <PartialEvidence locale={locale} report={state.partial} /> : null}
-        {state.kind === "report" ? (
-          <section className="ready-panel" id="evidence">
-            <span aria-hidden="true" className="ready-mark" />
-            <h2>{t(locale, "scan.ready")}</h2>
-            <p>{t(locale, "scan.readyBody")}</p>
-          </section>
-        ) : null}
         <a className="back-link" href={`/${locale}`}>{t(locale, "scan.back")}</a>
       </main>
+      )}
     </SiteShell>
   );
 }

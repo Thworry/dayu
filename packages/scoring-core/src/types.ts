@@ -3,6 +3,16 @@ import type { RepositoryClassification } from "@dayu/repository-taxonomy";
 
 export type Dimension = "popularity" | "substance" | "maintenance" | "community" | "claims";
 
+export type ScoringCaveat =
+  | "active_weeks_unavailable"
+  | "binary_lfs"
+  | "bounded_activity_sample"
+  | "external_tracker"
+  | "generated_heavy"
+  | "low_star_wording_guard"
+  | "monorepo"
+  | "new_repo_history_guard";
+
 export interface PercentileBand {
   p80Deficit: number;
   p99Deficit: number;
@@ -23,7 +33,7 @@ export interface RuleFinding {
   evidenceIds: string[];
   positiveEvidenceIds: string[];
   copyKey: string;
-  limitations: string[];
+  limitations: ScoringCaveat[];
 }
 
 export interface DimensionRuleResult {

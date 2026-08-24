@@ -5,6 +5,7 @@ import type { PublicScanLimits } from "./limits.js";
 export interface GitHubRepository {
   id: number;
   full_name: string;
+  description?: string | null;
   private: boolean;
   default_branch: string;
   stargazers_count: number;
@@ -24,6 +25,7 @@ export interface GitHubRepository {
 export interface NormalizedRepository {
   id: number;
   fullName: string;
+  description: string | null;
   private: boolean;
   defaultBranch: string;
   stars: number;
@@ -75,6 +77,8 @@ export function normalizeRepository(input: unknown): NormalizedRepository {
 
   const pushedAt = input.pushed_at;
   if (pushedAt !== null && typeof pushedAt !== "string") throw new Error("invalid_repository_metadata");
+  const description = input.description;
+  if (description !== undefined && description !== null && typeof description !== "string") throw new Error("invalid_repository_metadata");
 
   for (const key of ["private", "archived", "fork", "has_issues", "is_template"] as const) {
     if (typeof input[key] !== "boolean") throw new Error("invalid_repository_metadata");
@@ -84,6 +88,7 @@ export function normalizeRepository(input: unknown): NormalizedRepository {
     archived: input.archived as boolean,
     createdAt: requiredString(input, "created_at"),
     defaultBranch: requiredString(input, "default_branch"),
+    description: typeof description === "string" ? description : null,
     fork: input.fork as boolean,
     forks: requiredCount(input, "forks_count"),
     fullName,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { en } from "./messages/en.js";
+import { caveatMessage } from "./index.js";
 import { zh } from "./messages/zh.js";
 
 describe("report messages", () => {
@@ -30,5 +31,13 @@ describe("report messages", () => {
       zh["level.heavy"],
       zh["level.flood"],
     ]).toEqual(["实打实", "有点包装，很正常", "水汽上来了", "海绵体质", "洪水预警"]);
+  });
+
+  it("localizes allowlisted caveats and hides unknown internal keys", () => {
+    expect(caveatMessage("en", "bounded_activity_sample")).toBe("The community finding uses only a bounded sample of public interactions.");
+    expect(caveatMessage("zh", "bounded_activity_sample")).toBe("社区判断只使用有限窗口内的公开互动样本。");
+    expect(caveatMessage("en", "private_internal_key")).toBe("An additional conservative scoring condition applies to this finding.");
+    expect(caveatMessage("zh", "private_internal_key")).toBe("这项发现应用了额外的保守判断条件。");
+    expect(caveatMessage("en", "private_internal_key")).not.toContain("private_internal_key");
   });
 });
