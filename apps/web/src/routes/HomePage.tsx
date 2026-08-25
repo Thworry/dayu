@@ -11,13 +11,13 @@ import { SiteShell } from "../components/SiteShell.js";
 export type ScanViewState =
   | { kind: "idle" }
   | { kind: "running"; jobId: string; stage: Exclude<ScanStage, "failed"> }
-  | { kind: "report"; report: ReportSnapshot }
+  | { kind: "report"; jobId?: string; report: ReportSnapshot }
   | { kind: "error"; code: PublicErrorCode; partial?: ReportSnapshot; resetAt?: string };
 
 export interface HomePageProps {
   api?: ScanApi;
   locale: Locale;
-  onReportRoute?: (path: string, report: ReportSnapshot, errorCode?: PublicErrorCode) => void;
+  onReportRoute?: (path: string, report: ReportSnapshot, errorCode?: PublicErrorCode, jobId?: string) => void;
 }
 
 const defaultScanApi = createScanApi();
@@ -76,8 +76,10 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
     abortRef.current = controller;
     setSubmitting(true);
     setState({ kind: "idle" });
+    let currentJobId: string | undefined;
     try {
       const created = await api.createScan({ locale, repository }, controller.signal);
+      currentJobId = created.jobId;
       throwIfAborted(controller.signal);
       const initialStage = created.stage === "failed" ? "validated" : created.stage;
       setState({ jobId: created.jobId, kind: "running", stage: initialStage });
@@ -88,8 +90,8 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
         signal: controller.signal,
       });
       throwIfAborted(controller.signal);
-      setState({ kind: "report", report });
-      onReportRoute?.(repositoryRoute(locale, repository), report);
+      setState({ jobId: created.jobId, kind: "report", report });
+      onReportRoute?.(repositoryRoute(locale, repository), report, undefined, created.jobId);
     } catch (reason) {
       if (controller.signal.aborted || isAbort(reason)) return;
       if (isScanFailure(reason)) {
@@ -102,7 +104,7 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
         setState(errorState);
         if (reason.partial !== undefined) {
           throwIfAborted(controller.signal);
-          onReportRoute?.(repositoryRoute(locale, reason.partial.repository.fullName), reason.partial, reason.code);
+          onReportRoute?.(repositoryRoute(locale, reason.partial.repository.fullName), reason.partial, reason.code, currentJobId);
         }
       } else {
         setState({ code: "internal_failure", kind: "error" });

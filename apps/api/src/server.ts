@@ -9,10 +9,12 @@ import Fastify, { type FastifyInstance } from "fastify";
 
 import { readConfig } from "./config.js";
 import { memoryJobStore } from "./jobs/store.js";
+import { createCopilotRunRegistry } from "./jobs/copilot-runs.js";
 import type { ScanJobStore } from "./jobs/types.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes, registerUnavailableAuthRoutes, type AuthRoutesDependencies } from "./routes/auth.js";
 import { registerScanRoutes, type PublicCollector } from "./routes/scans.js";
+import { registerCopilotRoutes, type CopilotRoutesDependencies } from "./routes/copilot.js";
 
 const DEFAULT_NORMALIZER: NormalizerSnapshot = {
   bands: {
@@ -29,6 +31,7 @@ export interface ServerDependencies {
   auth?: AuthRoutesDependencies;
   clock?: () => Date;
   collector?: PublicCollector;
+  copilot?: Pick<CopilotRoutesDependencies, "analyze" | "limits">;
   jobStore?: ScanJobStore;
   normalizer?: NormalizerSnapshot;
   onBackgroundError?: (reason: unknown) => void;
@@ -44,8 +47,12 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
   const clock = dependencies.clock ?? (() => new Date());
   const collector = dependencies.collector ?? (async (ref) => collectPublicRepository(ref, createGitHubTransport()));
   const jobStore = dependencies.jobStore ?? memoryJobStore({ clock });
+  const copilotRuns = createCopilotRunRegistry();
 
   registerHealthRoutes(app);
+  app.addHook("preClose", async () => {
+    await copilotRuns.cancelAll();
+  });
   app.addHook("onClose", async () => {
     await jobStore.close?.();
   });
@@ -77,10 +84,23 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
       global: false,
       keyGenerator: (request) => request.ip,
     });
-    authApp.addHook("onClose", async () => {
-      await auth.oauth.close();
+    authApp.addHook("onClose", async () => { await auth.oauth.close(); });
+    registerAuthRoutes(authApp, {
+      ...auth,
+      destroyCopilotSessions: async (githubUserId) => {
+        await copilotRuns.cancelUser(githubUserId);
+        await auth.destroyCopilotSessions?.(githubUserId);
+      },
     });
-    registerAuthRoutes(authApp, auth);
+    registerCopilotRoutes(authApp, {
+      ...dependencies.copilot,
+      appOrigin: auth.appOrigin,
+      clock,
+      jobStore,
+      oauth: auth.oauth,
+      runs: copilotRuns,
+      secureCookie: auth.secureCookie,
+    });
   });
   return app;
 }

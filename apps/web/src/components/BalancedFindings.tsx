@@ -6,6 +6,7 @@ function FindingItem({ finding, locale, tone }: { finding: Finding; locale: Loca
     <li className={`finding-item is-${tone}`}>
       <span aria-hidden="true" className="finding-symbol">{tone === "positive" ? "+" : "!"}</span>
       <div>
+        {finding.producer === "copilot" ? <span className="finding-producer">{t(locale, "report.producer.copilot")}</span> : null}
         <h3>{findingMessage(locale, finding.titleKey, tone === "positive" ? "positiveTitle" : "cautionTitle")}</h3>
         <p>{findingMessage(locale, finding.explanationKey, tone === "positive" ? "positiveExplanation" : "cautionExplanation")}</p>
         {finding.caveat === "" ? null : <p className="finding-caveat"><strong>{t(locale, "report.caveat")}</strong> {caveatMessage(locale, finding.caveat)}</p>}

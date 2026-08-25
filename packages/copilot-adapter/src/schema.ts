@@ -38,4 +38,5 @@ export interface AiFinding extends CopilotFindingOutput {
 
 export interface CopilotAnalysis {
   findings: AiFinding[];
+  model: string;
 }

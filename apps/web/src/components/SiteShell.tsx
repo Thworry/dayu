@@ -1,14 +1,17 @@
 import { t, type Locale } from "@dayu/report-i18n";
 import { useEffect, type PropsWithChildren } from "react";
+import { Link, useInRouterContext } from "react-router-dom";
 
 import { oppositeLocale } from "../i18n/locale.js";
 
 export interface SiteShellProps extends PropsWithChildren {
   locale: Locale;
   repositoryPath?: string;
+  navigationState?: unknown;
 }
 
-export function SiteShell({ children, locale, repositoryPath = "" }: SiteShellProps): React.JSX.Element {
+export function SiteShell({ children, locale, navigationState, repositoryPath = "" }: SiteShellProps): React.JSX.Element {
+  const inRouter = useInRouterContext();
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
@@ -24,11 +27,15 @@ export function SiteShell({ children, locale, repositoryPath = "" }: SiteShellPr
           <span className="brand-subtitle">{t(locale, "common.subtitle")}</span>
         </a>
         <nav aria-label={t(locale, "common.language")}>
-          <a className="locale-switch" href={alternatePath} hrefLang={alternate}>
+          {navigationState === undefined || !inRouter ? <a className="locale-switch" href={alternatePath} hrefLang={alternate}>
             <span aria-hidden="true">{locale.toUpperCase()}</span>
             <span className="locale-arrow" aria-hidden="true" />
             <span>{t(locale, "common.language")}</span>
-          </a>
+          </a> : <Link className="locale-switch" hrefLang={alternate} state={navigationState} to={alternatePath}>
+            <span aria-hidden="true">{locale.toUpperCase()}</span>
+            <span className="locale-arrow" aria-hidden="true" />
+            <span>{t(locale, "common.language")}</span>
+          </Link>}
         </nav>
       </header>
       {children}

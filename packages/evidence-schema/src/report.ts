@@ -68,6 +68,20 @@ export const findingSchema = z
     }
   });
 
+const copilotMetadataSchema = z.object({
+  findings: z.array(z.object({
+    counterEvidenceIds: z.array(evidenceIdSchema).max(6),
+    en: z.string().min(1).max(300),
+    evidenceIds: z.array(evidenceIdSchema).max(6),
+    rubricId: z.string().min(1).max(80),
+    verdict: z.enum(["supported", "mixed", "contradicted", "unverifiable", "not_applicable"]),
+    zh: z.string().min(1).max(240),
+  }).strict()).max(12),
+  model: z.string().min(1).max(120),
+  promptVersion: z.string().min(1).max(80),
+  rubricVersion: z.string().min(1).max(80),
+}).strict();
+
 export const reportSnapshotSchema = z
   .object({
     reportVersion: z.literal("1"),
@@ -101,6 +115,7 @@ export const reportSnapshotSchema = z
     collectorVersion: z.string(),
     rulesVersion: z.string(),
     promptVersion: z.string().optional(),
+    copilot: copilotMetadataSchema.optional(),
     locale: z.enum(["zh", "en"]),
     createdAt: z.iso.datetime(),
     expiresAt: z.iso.datetime(),
@@ -145,6 +160,19 @@ export const reportSnapshotSchema = z
         for (const evidenceId of [...finding.evidenceIds, ...finding.counterEvidenceIds]) {
           if (!evidenceIds.has(evidenceId)) {
             context.addIssue({ code: "custom", message: "Finding references unknown evidence", path: [group, index, "evidenceIds"] });
+          }
+        }
+      }
+    }
+
+    if (report.copilot !== undefined) {
+      if (report.scoreKind === "rules_only" || (report.scoreKind === "enhanced" && report.copilot.promptVersion !== report.promptVersion)) {
+        context.addIssue({ code: "custom", message: "Copilot metadata requires an analyzed report and matching prompt version", path: ["copilot"] });
+      }
+      for (const [index, finding] of report.copilot.findings.entries()) {
+        for (const evidenceId of [...finding.evidenceIds, ...finding.counterEvidenceIds]) {
+          if (!evidenceIds.has(evidenceId)) {
+            context.addIssue({ code: "custom", message: "Copilot copy references unknown evidence", path: ["copilot", "findings", index, "evidenceIds"] });
           }
         }
       }

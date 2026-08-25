@@ -137,7 +137,7 @@ describe("HomePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
 
     await waitFor(() => {
-      expect(onReportRoute).toHaveBeenCalledWith("/en/r/facebook/react", reportFixture, "github_rate_limited");
+      expect(onReportRoute).toHaveBeenCalledWith("/en/r/facebook/react", reportFixture, "github_rate_limited", expect.any(String));
     });
   });
 

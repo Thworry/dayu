@@ -170,5 +170,5 @@ export function adjudicateCopilotOutput(raw: unknown, evidenceIndex: EvidenceInd
 }
 
 export function adjudicateCopilotAnalysis(raw: unknown, evidenceIndex: EvidenceIndex): CopilotAnalysis {
-  return { findings: adjudicateCopilotOutput(raw, evidenceIndex) };
+  return { findings: adjudicateCopilotOutput(raw, evidenceIndex), model: "unknown" };
 }

@@ -57,6 +57,21 @@ export function memoryJobStore(options: MemoryJobStoreOptions = {}): MemoryScanJ
   const cleanupHandle = scheduler.repeat(purgeExpired, options.cleanupIntervalMs ?? Math.min(ttlMs, 60_000));
 
   return {
+    claimForCopilot(id, githubUserId): Promise<ScanJob | "forbidden" | "not_ready" | null> {
+      const current = jobs.get(id);
+      if (current === undefined) return Promise.resolve(null);
+      if (expired(current)) {
+        jobs.delete(id);
+        return Promise.resolve(null);
+      }
+      if (current.copilotOwnerId !== undefined && current.copilotOwnerId !== githubUserId) {
+        return Promise.resolve("forbidden");
+      }
+      if (current.report === undefined || current.stage !== "rendered") return Promise.resolve("not_ready");
+      const claimed = { ...current, copilotOwnerId: githubUserId };
+      jobs.set(id, clone(claimed));
+      return Promise.resolve(clone(claimed));
+    },
     close(): Promise<void> {
       scheduler.cancel(cleanupHandle);
       jobs.clear();

@@ -13,6 +13,7 @@ export interface ScanPageProps {
   api?: ScanApi;
   initialReport?: ReportSnapshot;
   initialErrorCode?: PublicErrorCode;
+  initialJobId?: string;
   locale: Locale;
   owner: string;
   repo: string;
@@ -20,12 +21,12 @@ export interface ScanPageProps {
 
 const defaultScanApi = createScanApi();
 
-export function ScanPage({ api = defaultScanApi, initialErrorCode, initialReport, locale, owner, repo }: ScanPageProps): React.JSX.Element {
+export function ScanPage({ api = defaultScanApi, initialErrorCode, initialJobId, initialReport, locale, owner, repo }: ScanPageProps): React.JSX.Element {
   const repository = `${owner}/${repo}`;
   const [state, setState] = useState<ScanViewState>(() => initialReport === undefined
     ? { kind: "idle" }
     : initialErrorCode === undefined
-      ? { kind: "report", report: initialReport }
+      ? { ...(initialJobId === undefined ? {} : { jobId: initialJobId }), kind: "report", report: initialReport }
       : { code: initialErrorCode, kind: "error", partial: initialReport });
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialReport
           signal: controller.signal,
         });
         throwIfAborted(controller.signal);
-        setState({ kind: "report", report });
+        setState({ jobId: created.jobId, kind: "report", report });
       } catch (reason) {
         if (controller.signal.aborted || (reason instanceof DOMException && reason.name === "AbortError")) return;
         if (isScanFailure(reason)) {
@@ -57,8 +58,15 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialReport
   }, [api, initialReport, locale, repository]);
 
   return (
-    <SiteShell locale={locale} repositoryPath={`/r/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`}>
-      {state.kind === "report" ? <ReportPage locale={locale} report={state.report} /> : (
+    <SiteShell
+      locale={locale}
+      {...(state.kind === "report" ? { navigationState: { report: state.report, ...(state.jobId === undefined ? {} : { jobId: state.jobId }) } } : {})}
+      repositoryPath={`/r/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`}
+    >
+      {state.kind === "report" ? <ReportPage {...(state.jobId === undefined ? {} : { jobId: state.jobId })} locale={locale} onEnhanced={(enhanced) => {
+        const nextState = { ...(state.jobId === undefined ? {} : { jobId: state.jobId }), kind: "report" as const, report: enhanced };
+        setState(nextState);
+      }} report={state.report} /> : (
       <main className="scan-main">
         <p className="eyebrow"><span aria-hidden="true" />{t(locale, "home.eyebrow")}</p>
         <h1>{t(locale, "scan.heading", { repository })}</h1>

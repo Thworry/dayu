@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import type { Finding, ReportSnapshot } from "@dayu/evidence-schema";
+import type { CopilotApi, EnhancementResponse } from "../api/copilot.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -116,5 +117,144 @@ describe("ReportPage", () => {
     expect(githubApiSource("/user", "facebook/react")).toBe("https://api.github.com/");
     expect(githubApiSource("/repos/facebook/react/issues?state=all&page=1", "facebook/react"))
       .toBe("https://api.github.com/repos/facebook/react/issues?state=all&page=1");
+  });
+
+  it("keeps the rules report visible during one consented enhancement and renders the stored delta", async () => {
+    let finish!: (result: EnhancementResponse) => void;
+    const enhance = vi.fn<CopilotApi["enhance"]>(() => new Promise((resolve) => { finish = resolve; }));
+    const copilotApi: CopilotApi = {
+      enhance,
+      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+    };
+    const base = fixture();
+    const enhanced = {
+      ...base,
+      baseScore: base.score,
+      enrichedScore: 18,
+      promptVersion: "copilot-prompt-v1",
+      score: 18,
+      scoreKind: "enhanced" as const,
+    };
+    render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={base} />);
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
+    expect(screen.getByText("Rules-only Signal")).toBeVisible();
+    expect(screen.getByText(/rules report remains visible/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: /Copilot is checking/i })).toBeDisabled();
+    expect(enhance).toHaveBeenCalledTimes(1);
+
+    finish({
+      baseReport: base,
+      enhancedReport: enhanced,
+      metadata: {
+        findings: [{ counterEvidenceIds: [], en: "[SUPPORTED] Stored English finding.", evidenceIds: [evidenceId], rubricId: "claims.install", verdict: "supported", zh: "[支持] 已保存的中文判断。" }],
+        model: "gpt-5-mini",
+        promptVersion: "copilot-prompt-v1",
+        rubricVersion: "copilot-rubric-v1",
+      },
+    });
+    expect(await screen.findByText("Copilot-enhanced Signal")).toBeVisible();
+    expect(screen.getByText("[SUPPORTED] Stored English finding.")).toBeVisible();
+    expect(screen.getByText("What changed after enhancement").closest(".copilot-success-status")).toHaveFocus();
+    expect(enhance).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the exact base report when Copilot returns an unusable result", async () => {
+    const base = fixture();
+    const copilotApi: CopilotApi = {
+      enhance: () => Promise.resolve({ baseReport: base, enhancedReport: null, errorCode: "copilot_invalid_output" }),
+      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+    };
+    render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={base} />);
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The rules report is preserved");
+    expect(screen.getByRole("alert")).toHaveFocus();
+    expect(screen.getByText("Rules-only Signal")).toBeVisible();
+  });
+
+  it("clears revoked authentication and offers a fresh GitHub connection", async () => {
+    const base = fixture();
+    const copilotApi: CopilotApi = {
+      enhance: () => Promise.resolve({ baseReport: base, enhancedReport: null, errorCode: "copilot_revoked" }),
+      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+    };
+    render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={base} />);
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
+    expect(await screen.findByRole("button", { name: "Connect GitHub to continue" })).toBeVisible();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("clears stale enhanced metadata when a new base report replaces it", async () => {
+    const base = fixture();
+    const enhanced = {
+      ...base,
+      baseScore: base.score,
+      copilot: {
+        findings: [{ counterEvidenceIds: [], en: "[SUPPORTED] Old finding.", evidenceIds: [evidenceId], rubricId: "claims.install", verdict: "supported" as const, zh: "[支持] 旧判断。" }],
+        model: "old-model",
+        promptVersion: "copilot-prompt-v1",
+        rubricVersion: "copilot-rubric-v1",
+      },
+      enrichedScore: 18,
+      promptVersion: "copilot-prompt-v1",
+      score: 18,
+      scoreKind: "enhanced" as const,
+    };
+    const copilotApi: CopilotApi = {
+      enhance: vi.fn(),
+      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+    };
+    const view = render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={enhanced} />);
+    expect(screen.getByText("[SUPPORTED] Old finding.")).toBeVisible();
+    view.rerender(<ReportPage copilotApi={copilotApi} jobId="new-job-id" locale="en" report={base} />);
+    expect(screen.queryByText("[SUPPORTED] Old finding.")).not.toBeInTheDocument();
+    expect(await screen.findByRole("checkbox")).toBeVisible();
+  });
+
+  it("ignores an old enhancement response after switching to a new report", async () => {
+    let finishOld!: (result: EnhancementResponse) => void;
+    const enhance = vi.fn<CopilotApi["enhance"]>(() => new Promise((resolve) => { finishOld = resolve; }));
+    const onEnhanced = vi.fn();
+    const copilotApi: CopilotApi = {
+      enhance,
+      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+    };
+    const oldBase = fixture();
+    const newBase = fixture({
+      repository: { ...oldBase.repository, fullName: "new/repository" },
+      sourceCommit: "fedcba0987654321",
+    });
+    const oldEnhanced = {
+      ...oldBase,
+      baseScore: oldBase.score,
+      enrichedScore: 18,
+      promptVersion: "copilot-prompt-v1",
+      score: 18,
+      scoreKind: "enhanced" as const,
+    };
+    const view = render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" onEnhanced={onEnhanced} report={oldBase} />);
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
+    const oldSignal = enhance.mock.calls[0]?.[2];
+
+    view.rerender(<ReportPage copilotApi={copilotApi} jobId="5f818d9d-d4f9-43b7-813e-e91dd41bb31a" locale="en" onEnhanced={onEnhanced} report={newBase} />);
+    expect(oldSignal?.aborted).toBe(true);
+    finishOld({
+      baseReport: oldBase,
+      enhancedReport: oldEnhanced,
+      metadata: {
+        findings: [{ counterEvidenceIds: [], en: "[SUPPORTED] Old response.", evidenceIds: [evidenceId], rubricId: "claims.install", verdict: "supported", zh: "[支持] 旧响应。" }],
+        model: "old-model",
+        promptVersion: "copilot-prompt-v1",
+        rubricVersion: "copilot-rubric-v1",
+      },
+    });
+    await Promise.resolve();
+
+    expect(screen.queryByText("[SUPPORTED] Old response.")).not.toBeInTheDocument();
+    expect(screen.getByText("Rules-only Signal")).toBeVisible();
+    expect(onEnhanced).not.toHaveBeenCalled();
   });
 });

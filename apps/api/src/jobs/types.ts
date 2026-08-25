@@ -20,6 +20,8 @@ export interface ScanJob {
   expiresAt: string;
   report?: ReportSnapshot;
   errorCode?: PublicErrorCode;
+  /** Internal ownership binding. This field is never returned by public scan routes. */
+  copilotOwnerId?: number;
 }
 
 export type CreateScanJobInput = Omit<ScanJob, "expiresAt" | "id"> & { expiresAt?: string };
@@ -30,4 +32,5 @@ export interface ScanJobStore {
   get(id: string): Promise<ScanJob | null>;
   update(id: string, patch: Partial<Omit<ScanJob, "id">>): Promise<void>;
   delete(id: string): Promise<void>;
+  claimForCopilot(id: string, githubUserId: number): Promise<ScanJob | "forbidden" | "not_ready" | null>;
 }

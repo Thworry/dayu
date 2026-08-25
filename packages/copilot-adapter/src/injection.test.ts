@@ -158,7 +158,7 @@ describe("isolated SDK session", () => {
   ) {
     let clientOptions: CopilotClientOptions | undefined;
     let sessionOptions: SessionConfig | undefined;
-    const sendAndWait = overrides.sendAndWait ?? vi.fn<AdapterSession["sendAndWait"]>().mockResolvedValue({ data: { content } });
+    const sendAndWait = overrides.sendAndWait ?? vi.fn<AdapterSession["sendAndWait"]>().mockResolvedValue({ data: { content, model: "gpt-5-mini" } });
     const disconnect = overrides.disconnect ?? vi.fn<AdapterSession["disconnect"]>().mockResolvedValue(undefined);
     const session: AdapterSession = {
       sendAndWait,
@@ -259,11 +259,32 @@ describe("isolated SDK session", () => {
   it("tears down on timeout", async () => {
     const sendAndWait = vi.fn<AdapterSession["sendAndWait"]>().mockRejectedValue(new Error("timeout"));
     const { disconnect, factory, getClientOptions, stop } = setup("", { sendAndWait });
-    await expect(analyzeWithCopilot({ githubToken: "token", evidence: [evidenceFixture()] }, factory)).rejects.toThrow("copilot_analysis_failed");
+    await expect(analyzeWithCopilot({ githubToken: "token", evidence: [evidenceFixture()] }, factory)).rejects.toThrow("copilot_timeout");
     expect(disconnect).toHaveBeenCalledOnce();
     expect(stop).toHaveBeenCalledOnce();
     const directory = getClientOptions()?.baseDirectory;
     expect(directory && existsSync(directory)).toBe(false);
+  });
+
+  it("force-stops and cleans up when the orchestration signal is aborted", async () => {
+    const controller = new AbortController();
+    const sendAndWait = vi.fn<AdapterSession["sendAndWait"]>(() => new Promise(() => undefined));
+    const { disconnect, factory, forceStop, sendAndWait: observedSend } = setup("", { sendAndWait });
+    const analysis = analyzeWithCopilot({ evidence: [evidenceFixture()], githubToken: "token", signal: controller.signal }, factory);
+    await vi.waitFor(() => { expect(observedSend).toHaveBeenCalledOnce(); });
+    controller.abort();
+    await expect(analysis).rejects.toThrow("copilot_cancelled");
+    expect(disconnect).toHaveBeenCalled();
+    expect(forceStop).toHaveBeenCalled();
+  });
+
+  it("never creates a Copilot session when cancellation arrives during preparation", async () => {
+    const controller = new AbortController();
+    const { createSession, factory } = setup();
+    const analysis = analyzeWithCopilot({ evidence: [evidenceFixture()], githubToken: "token", signal: controller.signal }, factory);
+    controller.abort();
+    await expect(analysis).rejects.toThrow("copilot_cancelled");
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   it("does not leak a token from cleanup errors", async () => {
@@ -330,7 +351,7 @@ describe("isolated SDK session", () => {
   it("bounds session creation and still stops the client", async () => {
     const createSession = vi.fn<AdapterClient["createSession"]>().mockReturnValue(new Promise(() => undefined));
     const { factory, stop } = setup(undefined, {}, { createSession });
-    await expect(analyzeWithCopilot({ githubToken: "token", evidence: [evidenceFixture()] }, factory, FAST_TIMEOUTS)).rejects.toThrow("copilot_analysis_failed");
+    await expect(analyzeWithCopilot({ githubToken: "token", evidence: [evidenceFixture()] }, factory, FAST_TIMEOUTS)).rejects.toThrow("copilot_timeout");
     expect(stop).toHaveBeenCalledOnce();
   });
 
@@ -350,6 +371,17 @@ describe("isolated SDK session", () => {
     const error = await analyzeWithCopilot({ githubToken: "ghu_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", evidence: [evidenceFixture()] }, factory)
       .catch((caught: unknown) => caught);
     expect(error).toEqual(new Error("copilot_analysis_failed"));
+  });
+
+  it.each([
+    [{ status: 401 }, "copilot_revoked"],
+    [{ status: 429 }, "copilot_quota_exhausted"],
+    [{ code: "subscription_required" }, "copilot_not_entitled"],
+    [{ code: "organization_policy_disabled" }, "copilot_policy_disabled"],
+  ])("maps known provider failures to a stable orchestration code", async (reason, code) => {
+    const sendAndWait = vi.fn<AdapterSession["sendAndWait"]>().mockRejectedValue(reason);
+    const { factory } = setup(undefined, { sendAndWait });
+    await expect(analyzeWithCopilot({ githubToken: "token", evidence: [evidenceFixture()] }, factory)).rejects.toThrow(code);
   });
 
   it("cleans up when session creation fails and exposes no credential fallback", async () => {

@@ -72,7 +72,15 @@ function withoutSourceFiles(report: RulesReport, collectedEvidence: readonly Evi
   };
 }
 
-function publicJob(job: ScanJob): Omit<ScanJob, "report"> & { reportAvailable: boolean } {
+function publicJob(job: ScanJob): {
+  createdAt: string;
+  errorCode?: PublicErrorCode;
+  expiresAt: string;
+  id: string;
+  reportAvailable: boolean;
+  repository: string;
+  stage: ScanJob["stage"];
+} {
   return {
     createdAt: job.createdAt,
     ...(job.errorCode === undefined ? {} : { errorCode: job.errorCode }),

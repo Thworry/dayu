@@ -32,6 +32,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@dayu/copilot-adapter':
+        specifier: workspace:*
+        version: link:../../packages/copilot-adapter
       '@dayu/evidence-schema':
         specifier: workspace:*
         version: link:../../packages/evidence-schema

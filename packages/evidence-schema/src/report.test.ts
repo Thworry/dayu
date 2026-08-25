@@ -164,4 +164,31 @@ describe("Report contracts", () => {
       );
     }
   });
+
+  it("stores bounded bilingual Copilot metadata for language switching without a rerun", () => {
+    const copilot = {
+      findings: [{ counterEvidenceIds: [], en: "[SUPPORTED] Bounded finding.", evidenceIds: [evidence.id], rubricId: "claims.install", verdict: "supported", zh: "[支持] 有限判断。" }],
+      model: "gpt-5-mini",
+      promptVersion: "copilot-prompt-v1",
+      rubricVersion: "copilot-rubric-v1",
+    } as const;
+    const parsed = reportSnapshotSchema.safeParse({
+      ...validReport,
+      copilot,
+      enrichedScore: 14,
+      promptVersion: "copilot-prompt-v1",
+      score: 14,
+      scoreKind: "enhanced",
+    });
+    expect(parsed.success).toBe(true);
+
+    expect(reportSnapshotSchema.safeParse({
+      ...validReport,
+      copilot: { ...copilot, findings: [{ ...copilot.findings[0], evidenceIds: ["ev_bbbbbbbbbbbbbbbbbbbbbbbb"] }] },
+      enrichedScore: 14,
+      promptVersion: "copilot-prompt-v1",
+      score: 14,
+      scoreKind: "enhanced",
+    }).success).toBe(false);
+  });
 });
