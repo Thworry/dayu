@@ -1,4 +1,5 @@
 export { classifyRepository } from "./classify.js";
+export const TAXONOMY_VERSION = "taxonomy-v1";
 export type {
   RepositoryClassification,
   RepositoryClassificationInput,

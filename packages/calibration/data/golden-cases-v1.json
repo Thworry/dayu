@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1",
+  "version": "golden-v1-sample",
+  "generatedAt": "2026-08-25T00:00:00.000Z",
+  "immutable": true,
+  "dataClassification": "synthetic_sample",
+  "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "normalizerManifestDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reviewedLabelManifestDigest": "sha256:d08afc0c4bb219fb9777e7cfd11e9dae4da0f9e8b394dece0be70e87d3813656",
+  "bindings": {
+    "rulesVersion": "rules-v1",
+    "taxonomyVersion": "taxonomy-v1",
+    "normalizerVersion": "normalizer-v1",
+    "pipelineVersion": "scoring-pipeline-v1"
+  },
+  "cases": [
+    {
+      "id": "case_synthetic_ordinary",
+      "repositoryType": "generic",
+      "currentScore": 22,
+      "previousScore": null,
+      "expected": "ordinary",
+      "challengeTags": ["synthetic-example"],
+      "review": { "blinded": false, "reviewerCount": 0, "provenance": { "source": "synthetic_fixture", "protocolVersion": "blind-review-v1", "manifestDigest": "sha256:7c7ecc06d213a4ebf2835ccb43c93cf1110cd79e1a3610f68521d26a943bedf4" } },
+      "scoringInputDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "scoringOutputDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "scoringInput": {
+        "analyzedAt": "2026-08-25T00:00:00.000Z",
+        "expiresAt": "2026-08-25T00:30:00.000Z",
+        "collectorVersion": "collector-v1",
+        "locale": "en",
+        "evidence": [
+          { "id": "ev_aaaaaaaaaaaaaaaaaaaaaaaa", "schemaVersion": "1", "kind": "metadata", "repository": { "id": 1, "fullName": "sample/repo" }, "source": { "kind": "api", "endpoint": "/repos/sample/repo", "queryHash": "sample" }, "observedAt": "2026-08-25T00:00:00.000Z", "status": "complete", "summary": "Synthetic metadata", "value": { "defaultBranch": "main", "stars": 10 }, "fact": { "metric": "repository.metadata", "value": { "defaultBranch": "main", "stars": 10 } }, "limitations": [] },
+          { "id": "ev_bbbbbbbbbbbbbbbbbbbbbbbb", "schemaVersion": "1", "kind": "commit", "repository": { "id": 1, "fullName": "sample/repo" }, "source": { "kind": "api", "endpoint": "/repos/sample/repo/commits/main", "queryHash": "sample" }, "observedAt": "2026-08-25T00:00:00.000Z", "status": "complete", "summary": "Synthetic commit", "value": { "sha": "abcdef1234567890" }, "fact": { "metric": "repository.default_commit", "value": { "sha": "abcdef1234567890" } }, "limitations": [] }
+        ]
+      }
+    },
+    {
+      "id": "case_synthetic_risk",
+      "repositoryType": "generic",
+      "currentScore": 84,
+      "previousScore": null,
+      "expected": "risk",
+      "challengeTags": ["synthetic-example"],
+      "review": { "blinded": false, "reviewerCount": 0, "provenance": { "source": "synthetic_fixture", "protocolVersion": "blind-review-v1", "manifestDigest": "sha256:d58108d8b5740c0b573275ec36b8fa82b5acfe67c1eac4fb3ecb8725bf25ee0b" } },
+      "scoringInputDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "scoringOutputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "scoringInput": {
+        "analyzedAt": "2026-08-25T00:00:00.000Z",
+        "expiresAt": "2026-08-25T00:30:00.000Z",
+        "collectorVersion": "collector-v1",
+        "locale": "en",
+        "evidence": [
+          { "id": "ev_aaaaaaaaaaaaaaaaaaaaaaaa", "schemaVersion": "1", "kind": "metadata", "repository": { "id": 1, "fullName": "sample/repo" }, "source": { "kind": "api", "endpoint": "/repos/sample/repo", "queryHash": "sample" }, "observedAt": "2026-08-25T00:00:00.000Z", "status": "complete", "summary": "Synthetic metadata", "value": { "defaultBranch": "main", "stars": 10 }, "fact": { "metric": "repository.metadata", "value": { "defaultBranch": "main", "stars": 10 } }, "limitations": [] },
+          { "id": "ev_bbbbbbbbbbbbbbbbbbbbbbbb", "schemaVersion": "1", "kind": "commit", "repository": { "id": 1, "fullName": "sample/repo" }, "source": { "kind": "api", "endpoint": "/repos/sample/repo/commits/main", "queryHash": "sample" }, "observedAt": "2026-08-25T00:00:00.000Z", "status": "complete", "summary": "Synthetic commit", "value": { "sha": "abcdef1234567890" }, "fact": { "metric": "repository.default_commit", "value": { "sha": "abcdef1234567890" } }, "limitations": [] }
+        ]
+      }
+    }
+  ]
+}

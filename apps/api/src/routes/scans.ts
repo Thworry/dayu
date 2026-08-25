@@ -8,7 +8,7 @@ import {
   type RepositoryRef,
 } from "@dayu/github-collector";
 import { classifyRepository } from "@dayu/repository-taxonomy";
-import { scoreRules, type NormalizerSnapshot, type RulesReport } from "@dayu/scoring-core";
+import { SCORING_RULES_VERSION, scoreRules, type NormalizerSnapshot, type RulesReport } from "@dayu/scoring-core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -114,7 +114,7 @@ async function runRules(
       expiresAt: job.expiresAt,
       locale,
       normalizer: dependencies.normalizer,
-      rulesVersion: "rules-v1",
+      rulesVersion: SCORING_RULES_VERSION,
     });
     const report = withoutSourceFiles({ ...scored, locale }, collected.evidence);
     const errorCode = report.scoreKind === "insufficient_evidence" ? "insufficient_evidence" : undefined;

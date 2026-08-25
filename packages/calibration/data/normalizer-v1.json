@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1",
+  "version": "normalizer-v1",
+  "generatedAt": "2026-08-25T00:00:00.000Z",
+  "immutable": true,
+  "dataClassification": "synthetic_sample",
+  "provenance": {
+    "source": "synthetic_fixture",
+    "collectorVersion": "collector-v1",
+    "taxonomyVersion": "taxonomy-v1",
+    "manifestDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "repositoryCount": 12,
+  "scoringNormalizer": {
+    "version": "normalizer-v1",
+    "confidence": 0.4,
+    "bands": {
+      "popularity.contributors": { "p80Deficit": 3.5, "p99Deficit": 7 },
+      "popularity.forks": { "p80Deficit": 3.5, "p99Deficit": 7 },
+      "popularity.human_activity": { "p80Deficit": 3.5, "p99Deficit": 7 },
+      "popularity.subscribers": { "p80Deficit": 3.5, "p99Deficit": 7 }
+    }
+  },
+  "cohorts": [
+    {
+      "keys": { "type": "software", "ageBand": "730d+", "starBand": "1k-9,999", "ecosystem": "typescript" },
+      "repositoryCount": 4,
+      "metrics": {
+        "contributorsPer1kStars": { "p50": 2.1, "p80": 3.8, "p95": 5.4, "p99": 7.2 },
+        "subscribersPer1kStars": { "p50": 0.7, "p80": 1.4, "p95": 2.2, "p99": 3.1 }
+      }
+    },
+    {
+      "keys": { "type": "docs_content", "ageBand": "180-729d", "starBand": "100-999", "ecosystem": "markdown" },
+      "repositoryCount": 4,
+      "metrics": {
+        "contributorsPer1kStars": { "p50": 1.2, "p80": 2.4, "p95": 3.9, "p99": 5.1 },
+        "subscribersPer1kStars": { "p50": 0.4, "p80": 0.9, "p95": 1.5, "p99": 2.2 }
+      }
+    },
+    {
+      "keys": { "type": "creative_demo", "ageBand": "0-179d", "starBand": "0-99", "ecosystem": "javascript" },
+      "repositoryCount": 4,
+      "metrics": {
+        "contributorsPer1kStars": { "p50": 0.4, "p80": 0.8, "p95": 1.4, "p99": 2.0 },
+        "subscribersPer1kStars": { "p50": 0.2, "p80": 0.5, "p95": 0.9, "p99": 1.3 }
+      }
+    }
+  ]
+}

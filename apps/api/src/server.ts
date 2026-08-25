@@ -3,7 +3,7 @@ import {
   createGitHubTransport,
 } from "@dayu/github-collector";
 import cookie from "@fastify/cookie";
-import type { NormalizerSnapshot } from "@dayu/scoring-core";
+import { REFERENCE_SCORING_NORMALIZER, type NormalizerSnapshot } from "@dayu/scoring-core";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import { readConfig } from "./config.js";
@@ -18,16 +18,7 @@ import { registerAuthRoutes, registerUnavailableAuthRoutes, type AuthRoutesDepen
 import { registerScanRoutes, type PublicCollector } from "./routes/scans.js";
 import { registerCopilotRoutes, type CopilotRoutesDependencies } from "./routes/copilot.js";
 
-const DEFAULT_NORMALIZER: NormalizerSnapshot = {
-  bands: {
-    "popularity.contributors": { p80Deficit: 3.5, p99Deficit: 7 },
-    "popularity.forks": { p80Deficit: 3.5, p99Deficit: 7 },
-    "popularity.human_activity": { p80Deficit: 3.5, p99Deficit: 7 },
-    "popularity.subscribers": { p80Deficit: 3.5, p99Deficit: 7 },
-  },
-  confidence: 0.4,
-  version: "embedded-beta-v1",
-};
+export const API_REFERENCE_NORMALIZER = REFERENCE_SCORING_NORMALIZER;
 
 export interface ServerDependencies {
   auth?: AuthRoutesDependencies;
@@ -69,7 +60,7 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
       clock,
       collector,
       jobStore,
-      normalizer: dependencies.normalizer ?? DEFAULT_NORMALIZER,
+      normalizer: dependencies.normalizer ?? API_REFERENCE_NORMALIZER,
       onBackgroundError: dependencies.onBackgroundError ?? (() => undefined),
     });
   });

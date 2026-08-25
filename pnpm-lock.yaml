@@ -137,6 +137,37 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@24.13.3)(jsdom@30.0.1)(lightningcss@1.33.0)(supports-color@7.2.0)
 
+  packages/calibration:
+    dependencies:
+      '@dayu/copilot-adapter':
+        specifier: workspace:*
+        version: link:../copilot-adapter
+      '@dayu/evidence-schema':
+        specifier: workspace:*
+        version: link:../evidence-schema
+      '@dayu/repository-taxonomy':
+        specifier: workspace:*
+        version: link:../repository-taxonomy
+      '@dayu/scoring-core':
+        specifier: workspace:*
+        version: link:../scoring-core
+      zod:
+        specifier: ^4.1.5
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vite-node:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@24.13.3)(lightningcss@1.33.0)(supports-color@7.2.0)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.3)(jsdom@30.0.1)(lightningcss@1.33.0)(supports-color@7.2.0)
+
   packages/copilot-adapter:
     dependencies:
       '@dayu/evidence-schema':

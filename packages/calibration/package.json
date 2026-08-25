@@ -1,0 +1,32 @@
+{
+  "name": "@dayu/calibration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "compose-manual-security-review": "vite-node src/compose-manual-security-review.ts",
+    "compose-release-evidence": "vite-node src/compose-release-evidence.ts",
+    "evaluate": "vite-node src/cli.ts",
+    "live-copilot-matrix": "vite-node src/live-copilot-matrix.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify-production-scoring": "vite-node src/verify-production-scoring.ts"
+  },
+  "dependencies": {
+    "@dayu/copilot-adapter": "workspace:*",
+    "@dayu/evidence-schema": "workspace:*",
+    "@dayu/repository-taxonomy": "workspace:*",
+    "@dayu/scoring-core": "workspace:*",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
+    "vite-node": "^3.2.4",
+    "vitest": "^3.2.4"
+  }
+}

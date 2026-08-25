@@ -1,0 +1,52 @@
+name: Public Beta release gate
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+
+jobs:
+  release-gate:
+    environment: public-beta-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          DAYU_E2E_API_PORT: "43174"
+          DAYU_E2E_PORT: "43173"
+      - run: pnpm audit --prod --audit-level high
+      - run: pnpm ci:secrets
+      - run: pnpm ci:licenses
+      - run: pnpm ci:links
+      - name: Replay production golden cases
+        run: pnpm --filter @dayu/calibration verify-production-scoring
+      - name: Run protected live Copilot entitlement matrix
+        run: pnpm --filter @dayu/calibration live-copilot-matrix --output "$RUNNER_TEMP/dayu-copilot-matrix.json"
+        env:
+          DAYU_COPILOT_FREE_TOKEN: ${{ secrets.DAYU_COPILOT_FREE_TOKEN }}
+          DAYU_COPILOT_ACCOUNT_CLASS_MANIFEST: ${{ secrets.DAYU_COPILOT_ACCOUNT_CLASS_MANIFEST }}
+          DAYU_COPILOT_IDENTITY_SALT: ${{ secrets.DAYU_COPILOT_IDENTITY_SALT }}
+          DAYU_COPILOT_PRO_TOKEN: ${{ secrets.DAYU_COPILOT_PRO_TOKEN }}
+          DAYU_COPILOT_ORG_TOKEN: ${{ secrets.DAYU_COPILOT_ORG_TOKEN }}
+      - name: Bind protected manual security review to this run
+        run: pnpm --filter @dayu/calibration compose-manual-security-review --output "$RUNNER_TEMP/dayu-manual-security-review.json"
+        env:
+          DAYU_MANUAL_SECURITY_REVIEW_SOURCE: ${{ secrets.DAYU_MANUAL_SECURITY_REVIEW_SOURCE }}
+      - name: Compose current-run release evidence
+        run: pnpm --filter @dayu/calibration compose-release-evidence --copilot-results "$RUNNER_TEMP/dayu-copilot-matrix.json" --manual-security-review "$RUNNER_TEMP/dayu-manual-security-review.json" --output "$RUNNER_TEMP/dayu-release-evidence.json"
+      - run: pnpm --filter @dayu/calibration evaluate --release-evidence "$RUNNER_TEMP/dayu-release-evidence.json" --require-beta

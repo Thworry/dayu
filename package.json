@@ -8,13 +8,15 @@
   },
   "scripts": {
     "build": "pnpm -r build",
+    "ci:links": "node scripts/check-links.mjs",
     "ci:licenses": "node scripts/check-licenses.mjs",
     "ci:secrets": "node scripts/check-secrets.mjs",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "release:gate": "pnpm --filter @dayu/calibration evaluate"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
