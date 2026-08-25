@@ -10,6 +10,7 @@ import { CopilotEnhancementError, type EnhancementAnalyzer } from "../jobs/enhan
 import { memoryJobStore } from "../jobs/store.js";
 import { createCopilotLimits, type CopilotLimits } from "../limits/copilot.js";
 import { buildServer } from "../server.js";
+import type { SafeLogRecord } from "../plugins/redacted-logger.js";
 
 const ORIGIN = "https://dayu.example";
 const NOW = new Date("2026-08-25T00:00:00.000Z");
@@ -110,7 +111,7 @@ afterEach(async () => {
   await Promise.all(apps.splice(0).map(async (app) => { await app.close(); }));
 });
 
-async function fixture(options: { analyze?: EnhancementAnalyzer; limits?: CopilotLimits; userId?: number } = {}) {
+async function fixture(options: { analyze?: EnhancementAnalyzer; limits?: CopilotLimits; records?: SafeLogRecord[]; userId?: number } = {}) {
   const store = memoryJobStore({ clock: () => NOW });
   const created = await store.create({ createdAt: NOW.toISOString(), report: report(), repository: "owner/repo", stage: "rendered" });
   const analyze = options.analyze ?? vi.fn<EnhancementAnalyzer>(() => Promise.resolve({ findings: [finding()], model: "gpt-5-mini" }));
@@ -120,6 +121,7 @@ async function fixture(options: { analyze?: EnhancementAnalyzer; limits?: Copilo
     clock: () => NOW,
     copilot: { analyze, ...(options.limits === undefined ? {} : { limits: options.limits }) },
     jobStore: store,
+    ...(options.records === undefined ? {} : { logSink: (record) => { options.records?.push(record); } }),
   });
   apps.push(app);
   return { analyze, app, jobId: created.id, oauth: oauthService, store };
@@ -207,6 +209,25 @@ describe("user-owned Copilot enhancement route", () => {
       expect(analyze).toHaveBeenCalledTimes(1);
     },
   );
+
+  it.each([
+    "copilot_failed",
+    "copilot_invalid_output",
+    "copilot_not_entitled",
+    "copilot_policy_disabled",
+    "copilot_quota_exhausted",
+    "copilot_revoked",
+    "copilot_timeout",
+  ] as const)("records the controlled top-level fallback code for %s without logging report or credentials", async (code) => {
+    const records: SafeLogRecord[] = [];
+    const analyze = vi.fn<EnhancementAnalyzer>(() => Promise.reject(new CopilotEnhancementError(code)));
+    const { app, jobId } = await fixture({ analyze, records });
+    const response = await request(app, jobId);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ errorCode: code });
+    expect(records.at(-1)).toMatchObject({ errorCode: code, route: "/api/scans/:jobId/copilot", status: 200 });
+    expect(JSON.stringify(records)).not.toMatch(/github-user-token-secret|owner\/repo|repository\.metadata|authorization|cookie|evidence/iu);
+  });
 
   it("does not redispatch a timed-out provider call and therefore cannot double-charge", async () => {
     const analyze = vi.fn<EnhancementAnalyzer>(() => Promise.reject(new CopilotEnhancementError("copilot_timeout")));

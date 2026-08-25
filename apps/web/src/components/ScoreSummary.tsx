@@ -32,7 +32,7 @@ export function ScoreSummary({ description, locale, report }: { description: str
       <h1 id="report-title">{report.repository.fullName}</h1>
       <p className="repository-description">{description ?? t(locale, "report.noDescription")}</p>
       <div className={`score-instrument${unscored ? " is-unscored" : ""}`}>
-        <div className="score-waterline" style={{ "--score-level": `${String(report.score ?? 0)}%` } as React.CSSProperties} />
+        <meter aria-hidden="true" className="score-waterline" max={100} min={0} value={report.score ?? 0} />
         <span className="score-label">{t(locale, "report.score")}</span>
         {unscored ? (
           <div className="insufficient-score">

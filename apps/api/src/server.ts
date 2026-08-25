@@ -2,7 +2,6 @@ import {
   collectPublicRepository,
   createGitHubTransport,
 } from "@dayu/github-collector";
-import rateLimit from "@fastify/rate-limit";
 import cookie from "@fastify/cookie";
 import type { NormalizerSnapshot } from "@dayu/scoring-core";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -11,6 +10,9 @@ import { readConfig } from "./config.js";
 import { memoryJobStore } from "./jobs/store.js";
 import { createCopilotRunRegistry } from "./jobs/copilot-runs.js";
 import type { ScanJobStore } from "./jobs/types.js";
+import { registerAbuseProtection } from "./plugins/rate-limit.js";
+import { registerRedactedLogger, stdoutSafeLogSink, type SafeLogSink } from "./plugins/redacted-logger.js";
+import { registerSecurityHeaders } from "./plugins/security.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes, registerUnavailableAuthRoutes, type AuthRoutesDependencies } from "./routes/auth.js";
 import { registerScanRoutes, type PublicCollector } from "./routes/scans.js";
@@ -35,12 +37,14 @@ export interface ServerDependencies {
   jobStore?: ScanJobStore;
   normalizer?: NormalizerSnapshot;
   onBackgroundError?: (reason: unknown) => void;
+  logSink?: SafeLogSink;
   trustedProxies?: string[];
 }
 
 export function buildServer(dependencies: ServerDependencies = {}): FastifyInstance {
   const trustedProxies = dependencies.trustedProxies ?? readConfig().trustedProxies;
   const app = Fastify({
+    bodyLimit: 64 * 1_024,
     logger: false,
     trustProxy: trustedProxies.length > 0 ? trustedProxies : false,
   });
@@ -49,6 +53,10 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
   const jobStore = dependencies.jobStore ?? memoryJobStore({ clock });
   const copilotRuns = createCopilotRunRegistry();
 
+  registerSecurityHeaders(app);
+  registerAbuseProtection(app);
+  registerRedactedLogger(app, dependencies.logSink ?? stdoutSafeLogSink);
+
   registerHealthRoutes(app);
   app.addHook("preClose", async () => {
     await copilotRuns.cancelAll();
@@ -56,20 +64,13 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
   app.addHook("onClose", async () => {
     await jobStore.close?.();
   });
-  void app.register(async (scanApp) => {
-    await scanApp.register(rateLimit, {
-      errorResponseBuilder: () => ({ error: { code: "request_rate_limited" }, statusCode: 429 }),
-      global: false,
-      keyGenerator: (request) => request.ip,
-    });
+  void app.register((scanApp) => {
     registerScanRoutes(scanApp, {
       clock,
       collector,
       jobStore,
       normalizer: dependencies.normalizer ?? DEFAULT_NORMALIZER,
-      onBackgroundError: dependencies.onBackgroundError ?? ((reason: unknown) => {
-        app.log.error({ errorType: reason instanceof Error ? reason.name : "unknown" }, "background scan failed terminally");
-      }),
+      onBackgroundError: dependencies.onBackgroundError ?? (() => undefined),
     });
   });
   void app.register(async (authApp) => {
@@ -79,11 +80,6 @@ export function buildServer(dependencies: ServerDependencies = {}): FastifyInsta
       registerUnavailableAuthRoutes(authApp);
       return;
     }
-    await authApp.register(rateLimit, {
-      errorResponseBuilder: () => ({ error: { code: "request_rate_limited" }, statusCode: 429 }),
-      global: false,
-      keyGenerator: (request) => request.ip,
-    });
     authApp.addHook("onClose", async () => { await auth.oauth.close(); });
     registerAuthRoutes(authApp, {
       ...auth,

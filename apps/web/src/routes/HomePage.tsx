@@ -117,7 +117,7 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
   const errorId = state.kind === "error" ? "scan-error" : undefined;
   return (
     <SiteShell locale={locale}>
-      <main className="home-main">
+      <main className="home-main" id="main-content" tabIndex={-1}>
         <section className="hero-copy">
           <p className="eyebrow"><span aria-hidden="true" />{t(locale, "home.eyebrow")}</p>
           <h1>{t(locale, "home.title")}</h1>

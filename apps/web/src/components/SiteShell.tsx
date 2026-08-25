@@ -19,6 +19,7 @@ export function SiteShell({ children, locale, navigationState, repositoryPath = 
   const alternatePath = repositoryPath === "" ? `/${alternate}` : `/${alternate}${repositoryPath}`;
   return (
     <div className="site-shell">
+      <a className="skip-link" href="#main-content">{locale === "zh" ? "跳到主要内容" : "Skip to main content"}</a>
       <header className="site-header">
         <a aria-label={`${t(locale, "common.brand")} — ${t(locale, "common.subtitle")}`} className="brand" href={`/${locale}`}>
           <span aria-hidden="true" className="brand-seal"><span /></span>

@@ -10,6 +10,7 @@ import { CopilotRunCancelledError, enhanceJob, type EnhancementAnalyzer, type En
 import type { CopilotRunRegistry } from "../jobs/copilot-runs.js";
 import type { ScanJobStore } from "../jobs/types.js";
 import { createCopilotLimits, type CopilotLimitCode, type CopilotLimits } from "../limits/copilot.js";
+import { setSafeRequestLogContext } from "../plugins/redacted-logger.js";
 
 const copilotBody = z.object({
   consent: z.literal(true),
@@ -52,6 +53,11 @@ function publicError(code: RouteErrorCode): { error: { code: RouteErrorCode } } 
 
 function limitStatus(code: CopilotLimitCode): number {
   return code === "copilot_busy" ? 503 : 429;
+}
+
+function markEnhancementFallback(request: Parameters<typeof setSafeRequestLogContext>[0], result: EnhancementResult): EnhancementResult {
+  if (result.errorCode !== undefined) setSafeRequestLogContext(request, { errorCode: result.errorCode });
+  return result;
 }
 
 function appOrigin(value: string): string {
@@ -139,7 +145,7 @@ export function registerCopilotRoutes(app: FastifyInstance, dependencies: Copilo
     const existing = cache.get(key);
     if (existing !== undefined && existing.expiresAt > now) {
       try {
-        return await existing.promise;
+        return markEnhancementFallback(request, await existing.promise);
       } catch (reason) {
         cache.delete(key);
         if (reason instanceof CopilotRunCancelledError) return reply.code(409).send(publicError("copilot_cancelled"));
@@ -166,7 +172,7 @@ export function registerCopilotRoutes(app: FastifyInstance, dependencies: Copilo
     run.bind(promise);
     cache.set(key, { expiresAt: now + IDEMPOTENCY_TTL_MS, promise });
     try {
-      return await promise;
+      return markEnhancementFallback(request, await promise);
     } catch (reason) {
       cache.delete(key);
       if (reason instanceof CopilotRunCancelledError) return reply.code(409).send(publicError("copilot_cancelled"));

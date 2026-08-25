@@ -38,6 +38,20 @@
   font-synthesis: none;
 }
 
+.skip-link {
+  background: var(--ink);
+  color: var(--paper);
+  left: 1rem;
+  padding: 0.75rem 1rem;
+  position: fixed;
+  top: 0.5rem;
+  transform: translateY(-160%);
+  transition: transform 120ms ease;
+  z-index: 1000;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #edf8f5;

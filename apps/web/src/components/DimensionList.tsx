@@ -22,10 +22,20 @@ export function DimensionList({ locale, report }: { locale: Locale; report: Repo
                 <strong>{t(locale, label)}</strong>
                 <span>{t(locale, "report.weight", { weight })}</span>
               </div>
-              <div aria-label={`${t(locale, label)}: ${String(score ?? t(locale, "report.dimensionUnavailable"))}`} className="dimension-meter">
-                <span style={{ "--dimension-level": `${String(score ?? 0)}%` } as React.CSSProperties} />
-              </div>
-              <output>{score ?? t(locale, "report.dimensionUnavailable")}</output>
+              {score === null
+                ? <span aria-hidden="true" className="dimension-unavailable-track" />
+                : (
+                    <meter
+                      aria-label={`${t(locale, label)}: ${String(score)}`}
+                      className="dimension-meter"
+                      max={100}
+                      min={0}
+                      value={score}
+                    />
+                  )}
+              <output className={score === null ? "dimension-unavailable" : undefined}>
+                {score ?? t(locale, "report.dimensionUnavailable")}
+              </output>
             </li>
           );
         })}

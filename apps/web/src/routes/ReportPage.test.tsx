@@ -77,6 +77,20 @@ describe("ReportPage", () => {
     expect(screen.queryByTestId("precise-score")).not.toBeInTheDocument();
   });
 
+  it("renders a neutral unavailable dimension without a zero-valued meter", () => {
+    const unavailable = fixture({
+      dimensionScores: { ...reportFixture.dimensionScores, substance: null },
+    });
+    render(<ReportPage locale="en" report={unavailable} />);
+
+    const substance = screen.getByText("Code Substance").closest("li");
+    expect(substance).not.toBeNull();
+    expect(substance?.querySelector("meter")).toBeNull();
+    expect(substance?.querySelector(".dimension-unavailable-track")).toHaveAttribute("aria-hidden", "true");
+    expect(substance?.querySelector("output")).toHaveTextContent("Not enough data");
+    expect(screen.getAllByRole("meter")).toHaveLength(4);
+  });
+
   it("uses score kind as the unscored source of truth", () => {
     render(<ReportPage locale="en" report={fixture({ score: 18, scoreKind: "facts_only" })} />);
     expect(screen.getByText("Insufficient evidence")).toBeVisible();

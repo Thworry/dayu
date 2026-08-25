@@ -160,7 +160,7 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
   }).toString()}`;
 
   return (
-    <main className="report-main">
+    <main className="report-main" id="main-content" tabIndex={-1}>
       <div className="report-layout">
         <aside className="report-summary-column">
           <ScoreSummary description={repositoryDescription(displayReport)} locale={locale} report={displayReport} />

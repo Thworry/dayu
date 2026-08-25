@@ -67,7 +67,7 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialJobId,
         const nextState = { ...(state.jobId === undefined ? {} : { jobId: state.jobId }), kind: "report" as const, report: enhanced };
         setState(nextState);
       }} report={state.report} /> : (
-      <main className="scan-main">
+      <main className="scan-main" id="main-content" tabIndex={-1}>
         <p className="eyebrow"><span aria-hidden="true" />{t(locale, "home.eyebrow")}</p>
         <h1>{t(locale, "scan.heading", { repository })}</h1>
         <p>{t(locale, "scan.body")}</p>
