@@ -115,6 +115,12 @@ export function scoreRules(input: ScoreRulesInput): RulesReport {
     normalizerVersion: input.normalizer.version,
     positiveSignals: [] as Finding[],
     reportVersion: "1" as const,
+    researchPreview: {
+      calibrationStatus: "uncalibrated" as const,
+      normalizerKind: "synthetic_reference" as const,
+      normalizerVersion: input.normalizer.version,
+      releaseStage: "pre_beta" as const,
+    },
     repository: { defaultBranch: repository.defaultBranch, fullName: repository.fullName, id: repository.id },
     repositoryType: input.classification.type,
     rulesVersion: input.rulesVersion,
@@ -237,17 +243,16 @@ export function scoreEnhanced(input: EnhancedScoreInput): EnhancedReport {
     const risk = rules.dimensionScores[dimension];
     return risk === null || weight <= 0 ? [] : [{ dimension, risk, weight }];
   });
-  const ruleParts = [...parts];
-  const dimensionAvailableWeights = { ...rules.dimensionAvailableWeights };
   for (const dimension of ["substance", "maintenance", "community", "claims"] as const) {
     const matches = adjudicated.filter((entry) => entry.item.dimension === dimension);
     if (matches.length === 0) continue;
     const risk = matches.reduce((sum, entry) => sum + entry.risk, 0) / matches.length;
     const weight = AI_WEIGHTS[dimension];
     parts.push({ dimension, risk, weight });
-    dimensionAvailableWeights[dimension] += weight;
   }
-  const availableWeight = parts.reduce((sum, part) => sum + part.weight, 0);
+  // Copilot may add evidence-bound qualitative judgments, but it cannot turn
+  // missing deterministic public data into measured evidence coverage.
+  const availableWeight = rules.availableWeight;
   const totalByDimension = emptyDimensionScores();
   for (const dimension of DIMENSIONS) {
     const matching = parts.filter((part) => part.dimension === dimension);
@@ -255,46 +260,32 @@ export function scoreEnhanced(input: EnhancedScoreInput): EnhancedReport {
     totalByDimension[dimension] = weight === 0 ? null : Math.round(matching.reduce((sum, part) => sum + part.risk * part.weight, 0) / weight);
   }
   const confidence = enhancedConfidence(rules.confidence, aiConfidence(input.aiConfidence));
-  const rawScore = weightedAvailableScore(parts);
-  const score = rawScore === null ? null : gateScore(rawScore, totalByDimension, confidence);
   const aiFindings = adjudicated.filter((entry) => entry.risk > 0).map((entry) => aiSharedFinding(entry.item, entry.risk));
   const aiPositive = adjudicated.filter((entry) => entry.risk === 0).map((entry) => aiSharedFinding(entry.item, entry.risk));
-  if (score === null) {
+  if (rules.availableWeight < 0.6 || rules.baseScore === null || rules.score === null) {
     return {
       ...rules,
       availableWeight,
       baseScore: null,
       confidence,
-      dimensionAvailableWeights,
       dimensionScores: totalByDimension,
+      enrichedScore: undefined,
       findings: [...rules.findings, ...aiFindings],
+      promptVersion: undefined,
       positiveSignals: [...rules.positiveSignals, ...aiPositive],
       score: null,
       scoreKind: "insufficient_evidence",
     };
   }
-  const ruleWeight = ruleParts.reduce((sum, part) => sum + part.weight, 0);
-  const enhancedBaseScore = rules.baseScore ?? (ruleWeight === 0 ? null : Math.round(ruleParts.reduce((sum, part) => sum + part.risk * part.weight, 0) / ruleWeight));
-  if (enhancedBaseScore === null) {
-    return {
-      ...rules,
-      availableWeight,
-      confidence,
-      dimensionAvailableWeights,
-      dimensionScores: totalByDimension,
-      findings: [...rules.findings, ...aiFindings],
-      positiveSignals: [...rules.positiveSignals, ...aiPositive],
-      score: null,
-      scoreKind: "insufficient_evidence",
-    };
-  }
+  const rawScore = weightedAvailableScore(parts);
+  const score = rawScore === null ? null : gateScore(rawScore, totalByDimension, confidence);
+  if (score === null) throw new Error("enhanced_score_requires_deterministic_coverage");
   return {
     ...rules,
     availableWeight,
     confidence,
-    dimensionAvailableWeights,
     dimensionScores: totalByDimension,
-    baseScore: enhancedBaseScore,
+    baseScore: rules.baseScore,
     enrichedScore: score,
     findings: [...rules.findings, ...aiFindings],
     positiveSignals: [...rules.positiveSignals, ...aiPositive],

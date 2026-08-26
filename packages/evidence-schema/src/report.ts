@@ -82,9 +82,17 @@ const copilotMetadataSchema = z.object({
   rubricVersion: z.string().min(1).max(80),
 }).strict();
 
+const researchPreviewSchema = z.object({
+  calibrationStatus: z.literal("uncalibrated"),
+  normalizerKind: z.literal("synthetic_reference"),
+  normalizerVersion: z.string().min(1),
+  releaseStage: z.literal("pre_beta"),
+}).strict();
+
 export const reportSnapshotSchema = z
   .object({
     reportVersion: z.literal("1"),
+    researchPreview: researchPreviewSchema,
     repository: z.object({
       id: z.number().int().positive(),
       fullName: z.string(),

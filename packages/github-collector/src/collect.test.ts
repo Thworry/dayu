@@ -84,8 +84,34 @@ describe("collectPublicRepository", () => {
     expect(result.evidence.some((item) => item.fact.metric === "repository.file_content")).toBe(false);
 
     const issues = result.evidence.find((item) => item.fact.metric === "repository.issues");
-    expect(issues?.value).toMatchObject({ count: 1 });
+    expect(issues?.value).toMatchObject({
+      count: 1,
+      pagination: { complete: true, countSemantics: "exact", page: 1, perPage: 100 },
+    });
     expect(JSON.stringify(issues?.value)).not.toContain("login");
+  });
+
+  it("marks a bounded first page as a partial lower bound when GitHub links a next page", async () => {
+    const contributorPath = "/repos/facebook/react/contributors?per_page=100&page=1";
+    const contributors = Array.from({ length: 100 }, (_, index) => ({ contributions: index + 1 }));
+    const result = await collectPublicRepository(
+      { owner: "facebook", repo: "react" },
+      fixtureTransport({ [contributorPath]: contributors }, {
+        [contributorPath]: jsonHeaders({
+          link: '<https://api.github.com/repositories/10270250/contributors?per_page=100&page=2>; rel="next", <https://api.github.com/repositories/10270250/contributors?per_page=100&page=3>; rel="last"',
+        }),
+      }),
+    );
+
+    expect(result.coverage).toEqual({ attempted: 9, complete: 7, restricted: 0, truncated: 2 });
+    expect(result.evidence.find((item) => item.fact.metric === "repository.contributors")).toMatchObject({
+      limitations: ["bounded_first_page"],
+      status: "partial",
+      value: {
+        count: 100,
+        pagination: { complete: false, countSemantics: "lower_bound", page: 1, perPage: 100 },
+      },
+    });
   });
 
   it("turns a restricted endpoint into evidence instead of risk", async () => {

@@ -50,9 +50,14 @@ export interface AuthSessionResponse {
   githubUserId: number;
 }
 
+export type AuthSessionState =
+  | { kind: "authenticated"; session: AuthSessionResponse }
+  | { kind: "signed_out" }
+  | { kind: "unavailable" };
+
 export interface CopilotApi {
   enhance(jobId: string, input: { consent: true; csrfToken: string; idempotencyKey: string }, signal?: AbortSignal): Promise<EnhancementResponse>;
-  getSession(signal?: AbortSignal): Promise<AuthSessionResponse | null>;
+  getSession(signal?: AbortSignal): Promise<AuthSessionState>;
 }
 
 export class CopilotApiError extends Error {
@@ -146,10 +151,16 @@ export function createCopilotApi(): CopilotApi {
         headers: { accept: "application/json" },
         ...(signal === undefined ? {} : { signal }),
       });
-      if (response.status === 401 || response.status === 503) return null;
+      if (response.status === 401) return { kind: "signed_out" };
+      if (response.status === 503) return { kind: "unavailable" };
       const body = record(await json(response));
-      if (!response.ok || body?.authenticated !== true || typeof body.csrfToken !== "string" || typeof body.githubUserId !== "number") return null;
-      return { authenticated: true, csrfToken: body.csrfToken, githubUserId: body.githubUserId };
+      if (!response.ok || body?.authenticated !== true || typeof body.csrfToken !== "string" || typeof body.githubUserId !== "number") {
+        return { kind: "unavailable" };
+      }
+      return {
+        kind: "authenticated",
+        session: { authenticated: true, csrfToken: body.csrfToken, githubUserId: body.githubUserId },
+      };
     },
   };
 }

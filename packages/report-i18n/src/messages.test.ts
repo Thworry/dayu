@@ -30,7 +30,8 @@ describe("report messages", () => {
       zh["level.showing"],
       zh["level.heavy"],
       zh["level.flood"],
-    ]).toEqual(["实打实", "有点包装，很正常", "水汽上来了", "海绵体质", "洪水预警"]);
+    ]).toEqual(["水位平稳", "有点包装，很正常", "水汽上来了", "海绵体质", "洪水预警"]);
+    expect(Object.values(zh).join("\n")).not.toMatch(/维护真实性|实打实/);
   });
 
   it("localizes allowlisted caveats and hides unknown internal keys", () => {

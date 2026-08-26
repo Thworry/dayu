@@ -28,6 +28,7 @@ import {
   normalizeTree,
   selectTextBlobCandidates,
   type NormalizedEndpoint,
+  type PaginationMetadata,
   type NormalizedRepository,
 } from "./normalize.js";
 
@@ -56,7 +57,13 @@ interface EndpointDescriptor {
   requestPath: `/${string}`;
   sourceEndpoint: `/${string}`;
   summary: string;
-  normalize(input: unknown): NormalizedEndpoint;
+  normalize(input: unknown, pagination?: PaginationMetadata): NormalizedEndpoint;
+}
+
+function linkHasNext(headers: Headers): boolean {
+  const link = headers.get("link");
+  if (link === null) return false;
+  return link.split(",").some((entry) => /(?:^|;)\s*rel\s*=\s*"?next"?\s*(?:;|$)/i.test(entry));
 }
 
 function queryHash(path: string): string {
@@ -328,18 +335,21 @@ export async function collectPublicRepository(
     }
 
     try {
-      const normalized = descriptor.normalize(result.value.response.data);
-      const hasNextPage = result.value.response.headers.get("link")?.includes('rel="next"') ?? false;
-      const partial = normalized.partial || hasNextPage;
+      const pagination = descriptor.requestOptions === undefined ? undefined : {
+        hasNext: linkHasNext(result.value.response.headers),
+        page: descriptor.requestOptions.page ?? 1,
+        perPage: descriptor.requestOptions.perPage ?? 100,
+      };
+      const normalized = descriptor.normalize(result.value.response.data, pagination);
       evidence.push(metricEvidence({
         defaultSha,
         kind: descriptor.kind,
-        limitations: [...normalized.limitations, ...(hasNextPage ? ["page_budget_incomplete"] : [])],
+        limitations: normalized.limitations,
         metric: descriptor.metric,
         observedAt,
         path: descriptor.sourceEndpoint,
         repository,
-        status: partial ? "partial" : "complete",
+        status: normalized.partial ? "partial" : "complete",
         summary: descriptor.summary,
         value: normalized.value,
       }));

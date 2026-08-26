@@ -47,6 +47,12 @@ export interface NormalizedEndpoint {
   limitations: string[];
 }
 
+export interface PaginationMetadata {
+  page: number;
+  perPage: number;
+  hasNext: boolean;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -243,21 +249,42 @@ function normalizedActivityItem(item: Record<string, unknown>, fields: readonly 
   return result;
 }
 
-function normalizeActivity(input: unknown, fields: readonly string[], filter?: (item: Record<string, unknown>) => boolean): NormalizedEndpoint {
+function normalizeActivity(
+  input: unknown,
+  fields: readonly string[],
+  filter?: (item: Record<string, unknown>) => boolean,
+  pagination?: PaginationMetadata,
+): NormalizedEndpoint {
   if (!Array.isArray(input)) throw new Error("invalid_activity_response");
   const items = input.filter(isRecord).filter((item) => filter?.(item) ?? true).map((item) => normalizedActivityItem(item, fields));
-  return { limitations: [], partial: false, value: { count: items.length, items } };
+  return {
+    limitations: pagination?.hasNext === true ? ["bounded_first_page"] : [],
+    partial: pagination?.hasNext === true,
+    value: {
+      count: items.length,
+      items,
+      ...(pagination === undefined ? {} : {
+        pagination: {
+          complete: !pagination.hasNext,
+          countSemantics: pagination.hasNext ? "lower_bound" : "exact",
+          page: pagination.page,
+          perPage: pagination.perPage,
+        },
+      }),
+    },
+  };
 }
 
-export function normalizeIssues(input: unknown): NormalizedEndpoint {
+export function normalizeIssues(input: unknown, pagination?: PaginationMetadata): NormalizedEndpoint {
   return normalizeActivity(
     input,
     ["id", "state", "comments", "created_at", "updated_at", "closed_at", "author_association"],
     (item) => !("pull_request" in item),
+    pagination,
   );
 }
 
-export function normalizePulls(input: unknown): NormalizedEndpoint {
+export function normalizePulls(input: unknown, pagination?: PaginationMetadata): NormalizedEndpoint {
   return normalizeActivity(input, [
     "id",
     "state",
@@ -268,13 +295,13 @@ export function normalizePulls(input: unknown): NormalizedEndpoint {
     "closed_at",
     "merged_at",
     "author_association",
-  ]);
+  ], undefined, pagination);
 }
 
-export function normalizeReleases(input: unknown): NormalizedEndpoint {
-  return normalizeActivity(input, ["id", "tag_name", "draft", "prerelease", "created_at", "published_at"]);
+export function normalizeReleases(input: unknown, pagination?: PaginationMetadata): NormalizedEndpoint {
+  return normalizeActivity(input, ["id", "tag_name", "draft", "prerelease", "created_at", "published_at"], undefined, pagination);
 }
 
-export function normalizeContributors(input: unknown): NormalizedEndpoint {
-  return normalizeActivity(input, ["contributions"]);
+export function normalizeContributors(input: unknown, pagination?: PaginationMetadata): NormalizedEndpoint {
+  return normalizeActivity(input, ["contributions"], undefined, pagination);
 }

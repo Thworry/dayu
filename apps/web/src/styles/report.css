@@ -12,6 +12,9 @@
 .score-summary { position: relative; }
 .summary-mode { align-items: center; color: var(--river-text); display: flex; font-family: var(--mono); font-size: 11px; font-weight: 760; gap: 10px; letter-spacing: .1em; margin-bottom: 20px; text-transform: uppercase; }
 .summary-mode span { background: currentColor; display: block; height: 7px; width: 7px; }
+.research-preview { background: color-mix(in srgb, var(--silt) 15%, transparent); border-left: 3px solid var(--silt); display: grid; gap: 5px; margin: 0 0 22px; padding: 10px 12px; }
+.research-preview strong { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.research-preview span { color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
 .score-summary h1 { font-size: clamp(38px, 5.5vw, 68px); letter-spacing: -.055em; line-height: 1; overflow-wrap: anywhere; }
 .repository-description { color: var(--ink-soft); font-size: 16px; line-height: 1.65; margin: 20px 0 28px; max-width: 44rem; }
 

@@ -349,6 +349,18 @@ describe("GitHub auth routes", () => {
     expect(limited.json()).toMatchObject({ error: { code: "request_rate_limited" } });
   });
 
+  it("advertises OAuth as unavailable when the server is running rules-only", async () => {
+    const app = buildServer();
+    apps.push(app);
+
+    const session = await app.inject({ method: "GET", url: "/api/auth/session" });
+    const start = await app.inject({ method: "GET", url: "/api/auth/github/start?returnTo=%2Fen" });
+    expect(session.statusCode).toBe(503);
+    expect(session.json()).toEqual({ error: { code: "oauth_unavailable" } });
+    expect(start.statusCode).toBe(503);
+    expect(start.json()).toEqual({ error: { code: "oauth_unavailable" } });
+  });
+
   it("keeps browser-delivered React source and auth production code free of credential sinks", async () => {
     const webRoot = fileURLToPath(new URL("../../../web", import.meta.url));
     const browserText = (await textFiles(join(webRoot, "src"))).join("\n")

@@ -60,6 +60,8 @@ describe("ReportPage", () => {
     render(<ReportPage locale="en" report={fixture()} />);
 
     expect(screen.getByText("Rules-only Signal")).toBeVisible();
+    expect(screen.getByText("Pre-beta · uncalibrated research preview")).toBeVisible();
+    expect(screen.getByText(/synthetic reference normalizer normalizer-v1/i)).toBeVisible();
     expect(screen.getByText("What holds up")).toBeVisible();
     expect(screen.getByText("What needs a closer look")).toBeVisible();
     expect(screen.getByRole("link", { name: evidenceId })).toHaveAttribute("href", "https://api.github.com/repos/facebook/react");
@@ -68,6 +70,16 @@ describe("ReportPage", () => {
     expect(screen.getByText("The community finding uses only a bounded sample of public interactions.")).toBeVisible();
     expect(screen.getByText("An additional conservative scoring condition applies to this finding.")).toBeVisible();
     expect(screen.queryByText("sample_window")).not.toBeInTheDocument();
+  });
+
+  it("labels finding values as dimension risk and separates counter-evidence", () => {
+    const withCounterEvidence = fixture({ findings: [{ ...caution, counterEvidenceIds: [evidenceId] }] });
+    render(<ReportPage locale="en" report={withCounterEvidence} />);
+
+    expect(screen.getAllByText("Dimension risk").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Score impact")).not.toBeInTheDocument();
+    expect(screen.getByText("Counter-evidence")).toBeVisible();
+    expect(screen.getByText("Counter-evidence for")).toBeVisible();
   });
 
   it("does not render a pseudo-precise score when evidence is insufficient", () => {
@@ -138,7 +150,7 @@ describe("ReportPage", () => {
     const enhance = vi.fn<CopilotApi["enhance"]>(() => new Promise((resolve) => { finish = resolve; }));
     const copilotApi: CopilotApi = {
       enhance,
-      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
     };
     const base = fixture();
     const enhanced = {
@@ -177,7 +189,7 @@ describe("ReportPage", () => {
     const base = fixture();
     const copilotApi: CopilotApi = {
       enhance: () => Promise.resolve({ baseReport: base, enhancedReport: null, errorCode: "copilot_invalid_output" }),
-      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
     };
     render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={base} />);
     await userEvent.click(await screen.findByRole("checkbox"));
@@ -191,13 +203,25 @@ describe("ReportPage", () => {
     const base = fixture();
     const copilotApi: CopilotApi = {
       enhance: () => Promise.resolve({ baseReport: base, enhancedReport: null, errorCode: "copilot_revoked" }),
-      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
     };
     render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={base} />);
     await userEvent.click(await screen.findByRole("checkbox"));
     await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
     expect(await screen.findByRole("button", { name: "Connect GitHub to continue" })).toBeVisible();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("shows a rules-only capability notice without a broken OAuth action", async () => {
+    const copilotApi: CopilotApi = {
+      enhance: vi.fn(),
+      getSession: () => Promise.resolve({ kind: "unavailable" }),
+    };
+    render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={fixture()} />);
+
+    expect(await screen.findByRole("heading", { name: "Copilot enhancement is not configured here" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Connect GitHub to continue" })).not.toBeInTheDocument();
+    expect(screen.getByText("Rules-only Signal")).toBeVisible();
   });
 
   it("clears stale enhanced metadata when a new base report replaces it", async () => {
@@ -218,7 +242,7 @@ describe("ReportPage", () => {
     };
     const copilotApi: CopilotApi = {
       enhance: vi.fn(),
-      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
     };
     const view = render(<ReportPage copilotApi={copilotApi} jobId="2c3da581-4bb8-4934-9714-8b25b5e4fc0c" locale="en" report={enhanced} />);
     expect(screen.getByText("[SUPPORTED] Old finding.")).toBeVisible();
@@ -233,7 +257,7 @@ describe("ReportPage", () => {
     const onEnhanced = vi.fn();
     const copilotApi: CopilotApi = {
       enhance,
-      getSession: () => Promise.resolve({ authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 }),
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
     };
     const oldBase = fixture();
     const newBase = fixture({

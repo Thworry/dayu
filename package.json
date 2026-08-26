@@ -15,6 +15,8 @@
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "demo": "node scripts/local-demo.mjs",
+    "demo:smoke": "node scripts/local-demo.mjs --smoke",
     "e2e": "playwright test",
     "release:gate": "pnpm --filter @dayu/calibration evaluate"
   },

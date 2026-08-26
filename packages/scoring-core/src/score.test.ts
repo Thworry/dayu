@@ -161,18 +161,27 @@ describe("score composition", () => {
     expect(reportSnapshotSchema.safeParse(scoreRules(input())).success).toBe(true);
   });
 
-  it("allows AI evidence to lift combined available weight over 60 percent", () => {
+  it("keeps every overall score null when deterministic coverage is 59 percent", () => {
     const sparse = fullEvidence().filter((item) => ["repository.metadata", "repository.default_commit", "repository.tree", "repository.file_content"].includes(item.fact.metric));
-    const rulesReport = scoreRules(input({ evidence: sparse }));
+    const baseline = scoreRules(input({ evidence: sparse }));
+    const rulesReport = {
+      ...baseline,
+      availableWeight: 0.59,
+      baseScore: null,
+      dimensionAvailableWeights: { claims: 0.04, community: 0.08, maintenance: 0.13, popularity: 0.21, substance: 0.13 },
+      score: null,
+      scoreKind: "insufficient_evidence" as const,
+    };
     expect(rulesReport.baseScore).toBeNull();
     const report = scoreEnhanced({
       aiConfidence: { applicableCoverage: 1, evidenceScopeCompleteness: 1, sampleAdequacy: 1 },
       aiFindings: contradictedAi(rulesReport),
       rulesReport,
     });
-    expect(report.availableWeight).toBeGreaterThanOrEqual(0.6);
-    expect(report.scoreKind).toBe("enhanced");
-    expect(report.score).not.toBeNull();
+    expect(report.availableWeight).toBe(0.59);
+    expect(report.scoreKind).toBe("insufficient_evidence");
+    expect(report).toMatchObject({ baseScore: null, enrichedScore: undefined, score: null });
+    expect(report.findings.some((finding) => finding.producer === "copilot")).toBe(true);
     expect(reportSnapshotSchema.safeParse(report).success).toBe(true);
   });
 });

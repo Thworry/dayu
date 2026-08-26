@@ -47,6 +47,12 @@ const validReport = {
   dimensionScores: { popularity: 10, substance: 5, maintenance: 20, community: 15, claims: 10 },
   findings: [finding],
   positiveSignals: [finding],
+  researchPreview: {
+    calibrationStatus: "uncalibrated",
+    normalizerKind: "synthetic_reference",
+    normalizerVersion: "normalizer-v1",
+    releaseStage: "pre_beta",
+  },
   evidence: [evidence],
   evidenceIndex: { [evidence.id]: evidence },
   collectorVersion: "1.0.0",
@@ -61,7 +67,19 @@ describe("Report contracts", () => {
     const parsed = reportSnapshotSchema.parse(validReport);
 
     expect(parsed.dataStatus).toBe("complete");
+    expect(parsed.researchPreview).toEqual({
+      calibrationStatus: "uncalibrated",
+      normalizerKind: "synthetic_reference",
+      normalizerVersion: "normalizer-v1",
+      releaseStage: "pre_beta",
+    });
     expect(parsed.evidenceIndex[evidence.id]?.source).toMatchObject({ commitSha: "abcdef1234567" });
+  });
+
+  it("requires explicit pre-beta synthetic-normalizer metadata", () => {
+    const withoutPreview: Record<string, unknown> = { ...validReport };
+    delete withoutPreview.researchPreview;
+    expect(reportSnapshotSchema.safeParse(withoutPreview).success).toBe(false);
   });
 
   it("requires the producer-specific judgment id", () => {

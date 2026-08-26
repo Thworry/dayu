@@ -56,9 +56,12 @@ function safeFact(evidence: Evidence): string {
   return compact.length <= 240 ? compact : `${compact.slice(0, 239)}…`;
 }
 
-function linkedFindings(report: ReportSnapshot, evidenceId: string): Finding[] {
-  return [...report.positiveSignals, ...report.findings].filter((finding) =>
-    finding.evidenceIds.includes(evidenceId) || finding.counterEvidenceIds.includes(evidenceId));
+function linkedFindings(report: ReportSnapshot, evidenceId: string): { counter: Finding[]; primary: Finding[] } {
+  const findings = [...report.positiveSignals, ...report.findings];
+  return {
+    counter: findings.filter((finding) => finding.counterEvidenceIds.includes(evidenceId)),
+    primary: findings.filter((finding) => finding.evidenceIds.includes(evidenceId)),
+  };
 }
 
 export function EvidencePanel({ locale, report }: { locale: Locale; report: ReportSnapshot }): React.JSX.Element {
@@ -68,6 +71,7 @@ export function EvidencePanel({ locale, report }: { locale: Locale; report: Repo
       <ol className="evidence-list">
         {report.evidence.map((evidence) => {
           const references = linkedFindings(report, evidence.id);
+          const allReferences = [...references.primary, ...references.counter];
           const source = sourceDetails(report, evidence, locale);
           return (
             <li className="evidence-row" id={`evidence-${evidence.id}`} key={evidence.id}>
@@ -82,12 +86,20 @@ export function EvidencePanel({ locale, report }: { locale: Locale; report: Repo
               </div>
               <dl className="evidence-meta">
                 <div>
-                  <dt>{t(locale, "report.findingImpact")}</dt>
-                  <dd>{references.length === 0 ? t(locale, "report.unreferencedEvidence") : references.map((finding) => finding.scoreImpact > 0 ? `+${String(finding.scoreImpact)}` : String(finding.scoreImpact)).join(" · ")}</dd>
+                  <dt>{t(locale, "report.dimensionRisk")}</dt>
+                  <dd>{references.primary.length === 0
+                    ? t(locale, references.counter.length === 0 ? "report.unreferencedEvidence" : "report.noPrimaryEvidenceReference")
+                    : references.primary.map((finding) => `${String(finding.risk)} / 100`).join(" · ")}</dd>
                 </div>
+                {references.counter.length === 0 ? null : (
+                  <div>
+                    <dt>{t(locale, "report.counterEvidenceFor")}</dt>
+                    <dd>{references.counter.map((finding) => finding.findingId).join(" · ")}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>{t(locale, "report.producer")}</dt>
-                  <dd>{references.length === 0 ? t(locale, "report.unreferencedEvidence") : [...new Set(references.map((finding) => t(locale, finding.producer === "copilot" ? "report.producer.copilot" : "report.producer.rule")))].join(" · ")}</dd>
+                  <dd>{allReferences.length === 0 ? t(locale, "report.unreferencedEvidence") : [...new Set(allReferences.map((finding) => t(locale, finding.producer === "copilot" ? "report.producer.copilot" : "report.producer.rule")))].join(" · ")}</dd>
                 </div>
                 <div>
                   <dt>{t(locale, "report.observedAt")}</dt>

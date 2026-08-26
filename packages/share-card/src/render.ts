@@ -101,6 +101,12 @@ export async function renderShareCard(report: ReportSnapshot, locale: Locale): P
   context.textBaseline = "alphabetic";
   context.fillText("DAYU · REPO REALITY CHECK", 82, 72);
 
+  context.fillStyle = "#b04a3e";
+  context.fillRect(570, 36, 548, 48);
+  context.fillStyle = "#ffffff";
+  context.font = "700 16px ui-monospace, monospace";
+  drawMeasuredText(context, t(locale, "report.preview.label"), 588, 66, 512, 18, 1);
+
   context.fillStyle = "#071c24";
   context.font = "700 50px ui-sans-serif, sans-serif";
   drawMeasuredText(context, report.repository.fullName, 82, 142, 1036, 58, 2);
@@ -144,6 +150,6 @@ export async function renderShareCard(report: ReportSnapshot, locale: Locale): P
   context.fillRect(84, 582, 220, 5);
   context.fillStyle = "#36545e";
   context.font = "600 16px ui-monospace, monospace";
-  drawMeasuredText(context, `${safeText(report.sourceCommit, 16)} · ${safeText(report.createdAt, 28)}`, 330, 592, 788, 18, 1);
+  drawMeasuredText(context, `${safeText(report.sourceCommit, 16)} · ${safeText(report.researchPreview.normalizerVersion, 28)} · ${safeText(report.createdAt, 28)}`, 330, 592, 788, 18, 1);
   return canvas.toPng();
 }

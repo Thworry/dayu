@@ -8,6 +8,14 @@ It is closer to a weather instrument than a courtroom. DAYU can surface unusual 
 
 > Release status: this repository is a 0.x pre-beta research preview. The public Beta calibration gates have not been met. The included calibration files are small synthetic examples and support no public accuracy claim. Run `pnpm --filter @dayu/calibration evaluate` for the machine-readable status.
 
+[Open the static preview](https://thworry.github.io/dayu/) · [Run the rules-only app locally](#quick-start)
+
+The hosted preview is a fixed DAYU self-check: it cannot scan arbitrary repositories, sign in to GitHub, or call Copilot. The interactive scanner runs locally so its limitations and public-data behavior remain directly testable without presenting an uncalibrated service as production.
+
+![DAYU static pre-beta report preview in English](docs/assets/dayu-preview-en-desktop.png)
+
+> Screenshot: uncalibrated rules-only snapshot of DAYU's own public repository, pinned to commit `e327383`. It demonstrates the report structure, not validated accuracy or proof of manipulation.
+
 ## What it does
 
 - Scans public repositories without requiring GitHub login.
@@ -34,17 +42,32 @@ Requirements: Node.js 24+, pnpm 10, and Git.
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
+pnpm demo
+```
+
+Open the printed loopback URL and scan a public `owner/repo`. The launcher builds the web app, starts the Fastify API and static server on `127.0.0.1`, waits for both to become ready, and stops both on Ctrl-C. No OAuth or Copilot configuration is required; the UI clearly stays in rules-only mode. Public unauthenticated GitHub rate limits can reduce a report to partial or unverifiable data.
+
+For the complete developer checks:
+
+```bash
 pnpm exec playwright install chromium
 pnpm check
 pnpm e2e
 pnpm --filter @dayu/calibration evaluate
 ```
 
-The API and web app are workspace packages under `apps/`; the E2E harness starts both on isolated local ports. The current repository is implementation-oriented and does not yet ship a one-command production launcher. See [self-hosting](docs/self-hosting.md) for the required production composition, OAuth callback, token vault, headers, rate limits, and shutdown behavior.
+The local command is a development/research demo, not a production deployment recipe. See [self-hosting](docs/self-hosting.md) for the required OAuth callback, encrypted token vault, trusted proxy, Redis persistence, TLS, operational limits, and shutdown behavior.
 
 ## Screenshots
 
-Release screenshots are intentionally not checked in yet. The Playwright visual suite renders the real evidence report at 320, 768, and 1440 pixels during local and CI validation; reviewed, versioned screenshots will be added before public Beta. This avoids presenting an unreviewed pre-beta fixture as a production UI.
+The committed screenshots are generated from the same fixed [static preview](https://thworry.github.io/dayu/) and self-report JSON. They deliberately withhold the overall number because real cohort calibration and independent blind review are incomplete. They are not screenshots of a public live scanner.
+
+<details>
+<summary>Chinese mobile preview / 中文移动端预览</summary>
+
+![DAYU static pre-beta report preview in Chinese](docs/assets/dayu-preview-zh-mobile.png)
+
+</details>
 
 ## Repository map
 
@@ -67,7 +90,7 @@ pnpm --filter @dayu/calibration evaluate                 # JSON report; exits 0 
 pnpm --filter @dayu/calibration evaluate --require-beta  # exits non-zero until Beta-ready
 ```
 
-The protected release workflow generates its evidence file during the current run after replaying every golden case through the real taxonomy and scoring packages, verifying a separate immutable reviewed-label manifest, rerunning structured security gates, and completing tool-free Copilot probes with three protected empty-scope OAuth tokens. GitHub `/user` identities must be distinct and match a protected, reviewed Free/Pro/organization account-class registry; only salted identity digests leave memory. Dependency findings and a required protected manual-review manifest are merged, every digest is recomputed, and any unresolved high or critical finding blocks release. Missing, expired, stale, or altered review data fails closed. A checked-in boolean, altered label, duplicated account, or stale SHA cannot satisfy this gate.
+The manually dispatched, protected release workflow generates its evidence file during the current run after replaying every golden case through the real taxonomy and scoring packages, verifying a separate immutable reviewed-label manifest, rerunning structured security gates, and completing tool-free Copilot probes with three protected empty-scope OAuth tokens. GitHub `/user` identities must be distinct and match a protected, reviewed Free/Pro/organization account-class registry; only salted identity digests leave memory. Dependency findings and a required protected manual-review manifest are merged, every digest is recomputed, and any unresolved high or critical finding blocks release. Missing, expired, stale, or altered review data fails closed. A checked-in boolean, altered label, duplicated account, or stale SHA cannot satisfy this gate. A version tag is created only after this workflow succeeds; pushing a tag cannot bypass or start the qualification gate.
 
 Stable v1 raises the calibration floor to 30,000 repositories and 600 double-reviewed cases. Details are in the [methodology](docs/methodology.md).
 

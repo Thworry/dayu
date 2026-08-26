@@ -3,7 +3,7 @@ import { t, type Locale } from "@dayu/report-i18n";
 import { renderShareCard } from "@dayu/share-card";
 import { useEffect, useRef, useState } from "react";
 
-import { CopilotApiError, createCopilotApi, type AuthSessionResponse, type CopilotApi, type EnhancedMetadata } from "../api/copilot.js";
+import { CopilotApiError, createCopilotApi, type AuthSessionState, type CopilotApi, type EnhancedMetadata } from "../api/copilot.js";
 import { BalancedFindings } from "../components/BalancedFindings.js";
 import { CopilotConsent } from "../components/CopilotConsent.js";
 import { CopilotProgress } from "../components/CopilotProgress.js";
@@ -48,7 +48,7 @@ const defaultCopilotApi = createCopilotApi();
 export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEnhanced, report }: ReportPageProps): React.JSX.Element {
   const [shareState, setShareState] = useState<"copied" | "downloading" | "failed" | "idle">("idle");
   const [displayReport, setDisplayReport] = useState(report);
-  const [session, setSession] = useState<AuthSessionResponse | null>(null);
+  const [authState, setAuthState] = useState<AuthSessionState>({ kind: "signed_out" });
   const [sessionChecked, setSessionChecked] = useState(false);
   const [copilotState, setCopilotState] = useState<"failed" | "idle" | "running" | "succeeded">(report.copilot === undefined ? "idle" : "succeeded");
   const [enhancedMetadata, setEnhancedMetadata] = useState<EnhancedMetadata | null>(report.copilot ?? null);
@@ -81,11 +81,14 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
     const controller = new AbortController();
     void copilotApi.getSession(controller.signal).then((value) => {
       if (!controller.signal.aborted) {
-        setSession(value);
+        setAuthState(value);
         setSessionChecked(true);
       }
     }).catch(() => {
-      if (!controller.signal.aborted) setSessionChecked(true);
+      if (!controller.signal.aborted) {
+        setAuthState({ kind: "unavailable" });
+        setSessionChecked(true);
+      }
     });
     return () => { controller.abort(); };
   }, [copilotApi, jobId]);
@@ -112,7 +115,7 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
   }
 
   async function enhance(): Promise<void> {
-    if (jobId === undefined || session === null || copilotState === "running") return;
+    if (jobId === undefined || authState.kind !== "authenticated" || copilotState === "running") return;
     const key = idempotencyKey.current ?? globalThis.crypto.randomUUID();
     idempotencyKey.current = key;
     enhancementAbort.current?.abort();
@@ -122,11 +125,11 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
     enhancementGeneration.current = generation;
     setCopilotState("running");
     try {
-      const result = await copilotApi.enhance(jobId, { consent: true, csrfToken: session.csrfToken, idempotencyKey: key }, controller.signal);
+      const result = await copilotApi.enhance(jobId, { consent: true, csrfToken: authState.session.csrfToken, idempotencyKey: key }, controller.signal);
       if (controller.signal.aborted || generation !== enhancementGeneration.current) return;
       if (result.enhancedReport === null || result.metadata === undefined) {
         setDisplayReport(result.baseReport);
-        if (result.errorCode === "copilot_revoked") setSession(null);
+        if (result.errorCode === "copilot_revoked") setAuthState({ kind: "signed_out" });
         setCopilotState("failed");
         return;
       }
@@ -136,7 +139,7 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
       onEnhanced?.(result.enhancedReport);
     } catch (reason) {
       if (controller.signal.aborted || generation !== enhancementGeneration.current) return;
-      if (reason instanceof CopilotApiError && reason.code === "copilot_revoked") setSession(null);
+      if (reason instanceof CopilotApiError && reason.code === "copilot_revoked") setAuthState({ kind: "signed_out" });
       setCopilotState("failed");
     } finally {
       if (enhancementAbort.current === controller) enhancementAbort.current = null;
@@ -186,7 +189,7 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
           </div>
           {jobId !== undefined && sessionChecked && copilotState !== "succeeded" ? (
             <CopilotConsent
-              authenticated={session !== null}
+              authState={authState.kind}
               busy={copilotState === "running"}
               locale={locale}
               onConnect={connectGitHub}

@@ -35,5 +35,6 @@ export type {
   GitHubRepository,
   NormalizedEndpoint,
   NormalizedRepository,
+  PaginationMetadata,
   TextBlobCandidate,
 } from "./normalize.js";

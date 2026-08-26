@@ -53,6 +53,12 @@ function report(locale: "en" | "zh" = "en"): RulesReport {
     normalizerVersion: "normalizer-v1",
     positiveSignals: [],
     reportVersion: "1",
+    researchPreview: {
+      calibrationStatus: "uncalibrated",
+      normalizerKind: "synthetic_reference",
+      normalizerVersion: "normalizer-v1",
+      releaseStage: "pre_beta",
+    },
     repository: { defaultBranch: "main", fullName: "owner/repo", id: 1 },
     repositoryType: "software",
     rulesVersion: "rules-v1",

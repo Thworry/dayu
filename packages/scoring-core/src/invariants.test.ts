@@ -164,6 +164,47 @@ describe("scoring invariants", () => {
     expect(report.dimensionAvailableWeights.popularity).toBeCloseTo(0.1);
   });
 
+  it("never raises popularity mismatch risk from bounded first-page lower bounds", () => {
+    const activityItems = Array.from({ length: 100 }, (_, index) => ({
+      comments: 1,
+      id: index + 1,
+      state: "closed",
+    }));
+    const complete = fullEvidence().map((item) => {
+      if (item.fact.metric === "repository.contributors") {
+        const value = { count: 100, items: [] };
+        return { ...item, fact: { ...item.fact, value }, value };
+      }
+      if (["repository.issues", "repository.pull_requests"].includes(item.fact.metric)) {
+        const value = { count: 100, items: activityItems };
+        return { ...item, fact: { ...item.fact, value }, value };
+      }
+      return item;
+    });
+    const bounded = complete.map((item) => ["repository.contributors", "repository.issues", "repository.pull_requests"].includes(item.fact.metric)
+      ? (() => {
+          const value = {
+            ...(typeof item.value === "object" && item.value !== null && !Array.isArray(item.value) ? item.value : {}),
+            pagination: { complete: false, countSemantics: "lower_bound", page: 1, perPage: 100 },
+          };
+          return {
+            ...item,
+            fact: { ...item.fact, value },
+            limitations: ["bounded_first_page"],
+            status: "partial" as const,
+            value,
+          };
+        })()
+      : item);
+    const context = { analyzedAt: input().analyzedAt, classification, normalizer: input().normalizer, rulesVersion: "rules-1" };
+    const completeResult = scorePopularity({ ...context, evidence: complete });
+    const boundedResult = scorePopularity({ ...context, evidence: bounded });
+
+    expect(boundedResult.risk).not.toBeNull();
+    expect(boundedResult.risk ?? 0).toBeLessThanOrEqual(completeResult.risk ?? 0);
+    expect(boundedResult.findings[0]?.limitations).toContain("bounded_activity_sample");
+  });
+
   it("keeps proportional maintenance and community coverage around the 60 percent gate", () => {
     const complete = scoreRules(input());
     expect(complete.availableWeight).toBeCloseTo(0.7);

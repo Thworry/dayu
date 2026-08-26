@@ -11,11 +11,17 @@ function FindingItem({ finding, locale, tone }: { finding: Finding; locale: Loca
         <p>{findingMessage(locale, finding.explanationKey, tone === "positive" ? "positiveExplanation" : "cautionExplanation")}</p>
         {finding.caveat === "" ? null : <p className="finding-caveat"><strong>{t(locale, "report.caveat")}</strong> {caveatMessage(locale, finding.caveat)}</p>}
         <dl>
-          <div><dt>{t(locale, "report.findingImpact")}</dt><dd>{finding.scoreImpact > 0 ? `+${String(finding.scoreImpact)}` : String(finding.scoreImpact)}</dd></div>
+          <div><dt>{t(locale, "report.dimensionRisk")}</dt><dd>{String(finding.risk)} / 100</dd></div>
           <div>
             <dt>{t(locale, "report.evidenceReferences")}</dt>
             <dd>{finding.evidenceIds.map((id) => <a aria-label={t(locale, "report.viewEvidence", { id })} href={`#evidence-${id}`} key={id}><span aria-hidden="true">{id}</span></a>)}</dd>
           </div>
+          {finding.counterEvidenceIds.length === 0 ? null : (
+            <div>
+              <dt>{t(locale, "report.counterEvidenceReferences")}</dt>
+              <dd>{finding.counterEvidenceIds.map((id) => <a aria-label={t(locale, "report.viewEvidence", { id })} href={`#evidence-${id}`} key={id}><span aria-hidden="true">{id}</span></a>)}</dd>
+            </div>
+          )}
         </dl>
       </div>
     </li>

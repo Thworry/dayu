@@ -31,6 +31,12 @@ export const reportFixture = {
   missingSignals: ["releases"],
   positiveSignals: [],
   reportVersion: "1",
+  researchPreview: {
+    calibrationStatus: "uncalibrated",
+    normalizerKind: "synthetic_reference",
+    normalizerVersion: "normalizer-v1",
+    releaseStage: "pre_beta",
+  },
   repository: { defaultBranch: "main", fullName: "facebook/react", id: 1024 },
   repositoryType: "software",
   rulesVersion: "rules-v1",

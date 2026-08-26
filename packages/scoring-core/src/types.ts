@@ -141,7 +141,7 @@ export function evidenceQuality(item: Evidence): number {
   if (item.status === "complete") return item.limitations.length === 0 ? 1 : 0.9;
   if (item.status !== "partial") return 0;
   if (item.limitations.includes("github_tree_truncated")) return 0.4;
-  if (item.limitations.includes("page_budget_incomplete")) return 0.75;
+  if (item.limitations.includes("bounded_first_page") || item.limitations.includes("page_budget_incomplete")) return 0.75;
   return 0.75;
 }
 

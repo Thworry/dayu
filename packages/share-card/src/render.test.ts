@@ -18,6 +18,12 @@ const report = {
   missingSignals: [],
   positiveSignals: [],
   reportVersion: "1",
+  researchPreview: {
+    calibrationStatus: "uncalibrated",
+    normalizerKind: "synthetic_reference",
+    normalizerVersion: "normalizer-v1",
+    releaseStage: "pre_beta",
+  },
   repository: { defaultBranch: "main", fullName: "owner/<img onerror=alert(1)>", id: 1 },
   repositoryType: "software",
   rulesVersion: "rules-v1",
@@ -60,6 +66,7 @@ describe("renderShareCard", () => {
 
     expect(result.type).toBe("image/png");
     expect(fillText).toHaveBeenCalledWith("owner/<img onerror=alert(1)>", expect.any(Number), expect.any(Number));
+    expect(fillText).toHaveBeenCalledWith("Pre-beta · uncalibrated research preview", expect.any(Number), expect.any(Number));
     expect(convertToBlob).toHaveBeenCalledWith({ type: "image/png" });
   });
 

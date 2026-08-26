@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "preview-1",
+  "releaseStatus": "pre_beta_uncalibrated",
+  "repository": "Thworry/dayu",
+  "repositoryId": 1345907620,
+  "sourceCommit": "e327383ad64dfc532b37fb6edadbe5bb65b26557",
+  "collectedAt": "2026-08-25T09:10:00Z",
+  "analysisMode": "rules_only_static_snapshot",
+  "dataStatus": "partial",
+  "score": null,
+  "confidence": null,
+  "reasonScoreWithheld": "No real 5,000-repository calibration or independent blind review is available.",
+  "publicSignals": {
+    "stars": 0,
+    "forks": 0,
+    "trueWatches": 0,
+    "openIssuesAndPullRequests": 0,
+    "license": "Apache-2.0",
+    "primaryLanguage": "TypeScript"
+  },
+  "evidence": [
+    {
+      "id": "ev_7ca1a133836652561908bf2f",
+      "kind": "api",
+      "source": "https://api.github.com/repos/Thworry/dayu",
+      "summary": "The repository was public, unarchived, and reported 0 stars, 0 forks, and 0 subscribers at collection time.",
+      "limitations": ["Point-in-time public API observation", "No historical engagement series"]
+    },
+    {
+      "id": "ev_bc44953009d00e3471bd61da",
+      "kind": "file",
+      "source": "https://github.com/Thworry/dayu/blob/e327383ad64dfc532b37fb6edadbe5bb65b26557/package.json",
+      "summary": "The pinned package manifest declares a pnpm TypeScript workspace and Node.js 24 requirement.",
+      "limitations": ["File presence does not prove runtime correctness"]
+    },
+    {
+      "id": "ev_6207d6cd96a9bc860587474a",
+      "kind": "file",
+      "source": "https://github.com/Thworry/dayu/blob/e327383ad64dfc532b37fb6edadbe5bb65b26557/.github/workflows/ci.yml",
+      "summary": "The pinned CI workflow defines quality, E2E, dependency, secret, and license checks.",
+      "limitations": ["Workflow presence is not equivalent to a successful current run"]
+    },
+    {
+      "id": "ev_10f434a351543abc4465ea2f",
+      "kind": "file",
+      "source": "https://github.com/Thworry/dayu/blob/e327383ad64dfc532b37fb6edadbe5bb65b26557/LICENSE",
+      "summary": "The pinned repository contains an Apache-2.0 license file.",
+      "limitations": ["No legal interpretation is provided"]
+    }
+  ],
+  "missingSignals": [
+    "Real cohort calibration",
+    "Independent blind-reviewed labels",
+    "Longitudinal engagement history",
+    "Verified Copilot Free/Pro/organization matrix"
+  ]
+}

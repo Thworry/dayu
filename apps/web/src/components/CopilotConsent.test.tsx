@@ -31,10 +31,19 @@ describe("Copilot consent", () => {
   it("offers GitHub connection without pretending consent has already been granted", async () => {
     const connect = vi.fn();
     const confirm = vi.fn();
-    render(<CopilotConsent authenticated={false} locale="zh" onConnect={connect} onConfirm={confirm} />);
+    render(<CopilotConsent authState="signed_out" locale="zh" onConnect={connect} onConfirm={confirm} />);
     await userEvent.click(screen.getByRole("button", { name: "连接 GitHub 后继续" }));
     expect(connect).toHaveBeenCalledTimes(1);
     expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps the rules-only path clear when OAuth and Copilot are unavailable", () => {
+    render(<CopilotConsent authState="unavailable" locale="en" onConfirm={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Copilot enhancement is not configured here" })).toBeVisible();
+    expect(screen.getByText(/complete rules-only report/i)).toBeVisible();
+    expect(screen.queryByRole("button", { name: /connect github/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

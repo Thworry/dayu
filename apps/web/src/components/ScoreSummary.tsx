@@ -29,6 +29,10 @@ export function ScoreSummary({ description, locale, report }: { description: str
   return (
     <section aria-labelledby="report-title" className="score-summary">
       <div className="summary-mode"><span aria-hidden="true" />{t(locale, modeKey)}</div>
+      <div className="research-preview" role="note">
+        <strong>{t(locale, "report.preview.label")}</strong>
+        <span>{t(locale, "report.preview.body", { version: report.researchPreview.normalizerVersion })}</span>
+      </div>
       <h1 id="report-title">{report.repository.fullName}</h1>
       <p className="repository-description">{description ?? t(locale, "report.noDescription")}</p>
       <div className={`score-instrument${unscored ? " is-unscored" : ""}`}>

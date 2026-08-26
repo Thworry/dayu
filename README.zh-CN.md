@@ -8,6 +8,14 @@
 
 > 发布状态：当前是 0.x 预 Beta 研究预览版，尚未达到公开 Beta 的校准门槛。仓库里的校准数据只是小规模合成示例，不能用于宣传准确率。运行 `pnpm --filter @dayu/calibration evaluate` 可查看机器可读的真实状态。
 
+[打开静态预览](https://thworry.github.io/dayu/?lang=zh) · [在本地运行仅规则版](#本地开始)
+
+线上预览只是 DAYU 对自身仓库的固定快照：不能扫描任意仓库、不能登录 GitHub，也不会调用 Copilot。交互式扫描器只提供本地运行路径，让用户可以直接验证公开数据行为与限制，同时避免把尚未校准的服务包装成正式产品。
+
+![DAYU 英文静态预 Beta 报告预览](docs/assets/dayu-preview-en-desktop.png)
+
+> 截图说明：这是固定在 `e327383` 提交上的 DAYU 自身公开仓库“仅规则、未经校准”快照，只用于展示报告结构，不代表准确率已经验证，也不能证明任何操纵行为。
+
 ## 能做什么
 
 - 不登录 GitHub 也能扫描公开仓库，得到基础规则报告。
@@ -34,17 +42,32 @@ DAYU 只分析公开仓库。v1 明确不做私有仓库、全站排行榜、维
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
+pnpm demo
+```
+
+打开命令行打印的本机地址，然后输入公开的 `owner/repo`。启动器会构建前端，在 `127.0.0.1` 上启动 Fastify API 和静态服务器，等待两端就绪，并在按下 Ctrl-C 时一起关闭。无需配置 OAuth 或 Copilot，界面会清楚保持“仅规则”模式。GitHub 未登录公共 API 的限流可能让报告退化为部分数据或“无法验证”。
+
+如需执行完整开发检查：
+
+```bash
 pnpm exec playwright install chromium
 pnpm check
 pnpm e2e
 pnpm --filter @dayu/calibration evaluate
 ```
 
-API 与前端位于 `apps/` 工作区；E2E 测试会在隔离端口启动二者。当前仓库更适合开发与验证，尚未提供一条命令即可上线的生产启动器。生产部署所需的 OAuth 回调、令牌保险库、安全响应头、限流和优雅停机要求，请看[自托管指南](docs/self-hosting.md)。
+这条本地命令是开发／研究演示入口，不是生产部署配方。生产环境仍需 OAuth 回调、加密令牌保险库、可信代理、Redis 持久化、TLS、运行限额和优雅停机，详见[自托管指南](docs/self-hosting.md)。
 
 ## 截图
 
-仓库暂时没有放入发布截图。Playwright 视觉测试会真实渲染 320、768 和 1440 像素宽度的报告页面；经过复核、带版本号的截图将在公开 Beta 前加入。这样不会把预览期夹具误当成正式产品界面。
+已提交的截图来自同一份[静态预览](https://thworry.github.io/dayu/?lang=zh)和固定自检 JSON。因为真实同类组校准与独立盲审尚未完成，预览特意不输出综合数字；它也不是公开在线扫描器的截图。
+
+<details>
+<summary>中文移动端预览</summary>
+
+![DAYU 中文静态预 Beta 报告预览](docs/assets/dayu-preview-zh-mobile.png)
+
+</details>
 
 ## 校准与发布门槛
 
@@ -55,7 +78,7 @@ pnpm --filter @dayu/calibration evaluate                 # 输出 JSON，便于�
 pnpm --filter @dayu/calibration evaluate --require-beta  # 未达 Beta 门槛时返回非零状态
 ```
 
-受保护的发布工作流会在本次运行中生成证据文件：每个黄金案例都要经过真实 taxonomy 与评分包重放，预期分类、挑战标签、盲审状态、审阅人数与审阅来源还会通过独立的人工标签清单重新验签。三枚受保护的空 scope OAuth 令牌完成无工具 Copilot 探测时，工作流会从 GitHub `/user` 核对身份，确保三个账号互不相同，并与受保护环境里经审阅的 Free／Pro／组织账号分类清单逐一匹配；离开内存的只有加盐身份摘要。依赖审计 findings 还会与受保护环境中必需的人工安全审查清单合并，所有摘要都要在本次运行中重算。人工清单缺失、过期、commit 不符或被篡改，以及任何未解决的 high／critical 问题，都会阻断发布；已解决项仍保留在机器可读证据中。仓库中预写的布尔值、被改动的人工标签、重复账号或旧 SHA 都无法通过门槛。
+受保护的发布工作流只能手动触发，并会在本次运行中生成证据文件：每个黄金案例都要经过真实 taxonomy 与评分包重放，预期分类、挑战标签、盲审状态、审阅人数与审阅来源还会通过独立的人工标签清单重新验签。三枚受保护的空 scope OAuth 令牌完成无工具 Copilot 探测时，工作流会从 GitHub `/user` 核对身份，确保三个账号互不相同，并与受保护环境里经审阅的 Free／Pro／组织账号分类清单逐一匹配；离开内存的只有加盐身份摘要。依赖审计 findings 还会与受保护环境中必需的人工安全审查清单合并，所有摘要都要在本次运行中重算。人工清单缺失、过期、commit 不符或被篡改，以及任何未解决的 high／critical 问题，都会阻断发布；已解决项仍保留在机器可读证据中。仓库中预写的布尔值、被改动的人工标签、重复账号或旧 SHA 都无法通过门槛。版本标签只能在工作流成功后创建；推送标签不能绕过或启动资格门禁。
 
 稳定版 v1 的门槛提高到 30,000 个仓库和 600 个双人复核案例，详见[评分方法](docs/methodology.md)。
 

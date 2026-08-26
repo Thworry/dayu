@@ -58,6 +58,7 @@ app.get("/__dayu/ready", async (_request, reply) => {
 
 await app.register(httpProxy, {
   prefix: "/api",
+  retryMethods: [],
   rewritePrefix: "/api",
   upstream: apiOrigin,
 });

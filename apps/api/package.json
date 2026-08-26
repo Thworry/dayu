@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit",
+    "start": "vite-node src/start.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

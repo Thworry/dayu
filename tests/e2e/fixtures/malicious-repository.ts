@@ -29,6 +29,12 @@ export const maliciousRepositoryReport = {
   missingSignals: [],
   positiveSignals: [],
   reportVersion: "1",
+  researchPreview: {
+    calibrationStatus: "uncalibrated",
+    normalizerKind: "synthetic_reference",
+    normalizerVersion: "normalizer-v1",
+    releaseStage: "pre_beta",
+  },
   repository: { defaultBranch: "main", fullName: "owner/reality-check", id: 1024 },
   repositoryType: "software",
   rulesVersion: "rules-v1",
