@@ -1,0 +1,40 @@
+name: Bug / 缺陷
+description: Report a reproducible product or developer-experience problem / 报告可复现的问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping DAYU. Never include tokens, private repository data, or unredacted security details. 感谢反馈，请勿粘贴令牌、私有仓库数据或未脱敏漏洞细节。
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit / 版本或提交
+      placeholder: commit SHA, tag, or 0.x
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction / 复现步骤
+      description: Include the public repository input and the smallest repeatable sequence.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior / 预期与实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境
+      placeholder: OS, Node, pnpm, browser
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check / 安全确认
+      options:
+        - label: I removed tokens, private data, and exploit details. / 我已移除令牌、私有数据和漏洞细节。
+          required: true

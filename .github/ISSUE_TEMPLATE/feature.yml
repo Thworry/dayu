@@ -1,0 +1,31 @@
+name: Feature / 功能建议
+description: Suggest a bounded improvement / 提议边界清晰的改进
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 问题
+      description: Describe the user need without prescribing a solution first.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome / 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Evidence, privacy, and non-accusation impact / 证据、隐私与非指控影响
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check / 范围确认
+      options:
+        - label: This does not require private-repository analysis or claims of proven manipulation. / 本建议不要求分析私有仓库或声称证明造假。
+          required: true

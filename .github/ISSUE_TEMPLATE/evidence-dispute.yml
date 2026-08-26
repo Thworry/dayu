@@ -1,0 +1,47 @@
+name: Evidence dispute / 证据异议
+description: Challenge a finding, source, or missing-data interpretation / 对发现、证据或缺失数据提出异议
+title: "[Evidence] "
+labels: [evidence-review]
+body:
+  - type: markdown
+    attributes:
+      value: DAYU reports risk and mismatch, never proof of bought stars, fraud, or intent. 异议会按证据复核，不会被当作承认任何造假行为。
+  - type: input
+    id: repository
+    attributes:
+      label: Public repository / 公开仓库
+      placeholder: owner/repo
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Analyzed commit / 被分析提交
+      placeholder: full commit SHA
+    validations:
+      required: true
+  - type: input
+    id: evidence
+    attributes:
+      label: Evidence or finding ID / 证据或发现 ID
+      placeholder: ev_… or finding ID
+    validations:
+      required: true
+  - type: textarea
+    id: dispute
+    attributes:
+      label: What is inaccurate or incomplete? / 哪部分不准确或不完整？
+    validations:
+      required: true
+  - type: textarea
+    id: counterevidence
+    attributes:
+      label: Public counter-evidence / 公开反向证据
+      description: Link only to public, reviewable sources.
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Data boundary / 数据边界
+      options:
+        - label: Everything in this issue is safe to publish. / 本 Issue 中的内容均可公开。
+          required: true

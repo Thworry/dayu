@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report / 安全漏洞
+    url: https://github.com/Thworry/dayu/security/advisories/new
+    about: Report vulnerabilities privately. 请勿在公开 Issue 中披露漏洞或密钥。
+  - name: Methodology / 评分方法
+    url: https://github.com/Thworry/dayu/blob/main/docs/methodology.md
+    about: Read the evidence, confidence, and non-accusation boundaries first. 提交异议前请先阅读方法与边界。

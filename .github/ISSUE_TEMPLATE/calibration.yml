@@ -1,0 +1,36 @@
+name: Calibration contribution / 校准贡献
+description: Propose public cohort data or independent blind review / 提交公开样本或独立盲审贡献
+title: "[Calibration] "
+labels: [calibration]
+body:
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution type / 贡献类型
+      options:
+        - Public repository cohort / 公开仓库样本
+        - Blind review protocol / 盲审流程
+        - Reviewed case / 已审案例
+        - Metric or threshold critique / 指标或阈值质疑
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and provenance / 方案与来源
+      description: Explain sampling, dates, licenses, and reproducibility.
+    validations:
+      required: true
+  - type: textarea
+    id: conflicts
+    attributes:
+      label: Conflicts and limitations / 利益冲突与局限
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Public-data consent / 公开数据确认
+      options:
+        - label: The contribution uses only public data and may be reviewed in public. / 贡献仅使用公开数据，并可公开复核。
+          required: true
