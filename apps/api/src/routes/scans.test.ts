@@ -209,7 +209,7 @@ describe("rules scan routes", () => {
     expect(report.findings.flatMap((finding) => finding.evidenceIds.filter((id) => unavailable.has(id)))).toEqual([]);
   });
 
-  it("returns an evidence-only report below the available-weight threshold", async () => {
+  it("returns facts only when sparse evidence cannot establish a repository type", async () => {
     const app = buildServer({ clock: () => START, collector: () => Promise.resolve(collected({ sparse: true })), jobStore: memoryJobStore({ clock: () => START }) });
     apps.push(app);
     const created = await app.inject({ method: "POST", url: "/api/scans", payload: { repository: "owner/repo", locale: "en" } });
@@ -218,9 +218,9 @@ describe("rules scan routes", () => {
       async () => app.inject({ method: "GET", url: `/api/scans/${jobId}` }),
       (response) => response.json<{ stage: string }>().stage === "rendered",
     );
-    expect(settled.json()).toMatchObject({ errorCode: "insufficient_evidence", stage: "rendered" });
+    expect(settled.json()).toMatchObject({ stage: "rendered" });
     const report = (await app.inject({ method: "GET", url: `/api/scans/${jobId}/report` })).json<ReportSnapshot>();
-    expect(report).toMatchObject({ baseScore: null, score: null, scoreKind: "insufficient_evidence" });
+    expect(report).toMatchObject({ baseScore: null, score: null, scoreKind: "facts_only", missingSignals: ["taxonomy.low_confidence"] });
   });
 
   it("expires jobs after the configured TTL", async () => {

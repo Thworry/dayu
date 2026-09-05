@@ -12,10 +12,13 @@ const dimensions = [
 export function DimensionList({ locale, report }: { locale: Locale; report: ReportSnapshot }): React.JSX.Element {
   return (
     <section aria-labelledby="dimensions-heading" className="dimension-section">
-      <div className="section-heading"><span>03</span><h2 id="dimensions-heading">{t(locale, "report.dimensions")}</h2></div>
+      <div className="section-heading"><span>02</span><h2 id="dimensions-heading">{t(locale, "report.dimensions")}</h2></div>
+      <p className="dimension-direction">{t(locale, "report.dimensionDirection")}</p>
+      <div aria-hidden="true" className="dimension-axis"><span>{t(locale, "report.axis.low")}</span><span>{t(locale, "report.axis.high")}</span></div>
       <ol className="dimension-list">
         {dimensions.map(({ key, label, weight }) => {
           const score = report.dimensionScores[key];
+          const references = [...new Set([...report.findings, ...report.positiveSignals].filter((finding) => finding.dimension === key).flatMap((finding) => [...finding.evidenceIds, ...finding.counterEvidenceIds]))];
           return (
             <li key={key}>
               <div className="dimension-copy">
@@ -36,6 +39,10 @@ export function DimensionList({ locale, report }: { locale: Locale; report: Repo
               <output className={score === null ? "dimension-unavailable" : undefined}>
                 {score ?? t(locale, "report.dimensionUnavailable")}
               </output>
+              <div className="dimension-explanation">
+                <p>{t(locale, `report.dimensionContext.${key}`)}</p>
+                {references[0] !== undefined ? <a href={`#evidence-${references[0]}`}>{t(locale, "report.dimensionEvidence", { count: references.length })}<span aria-hidden="true"> ↗</span></a> : <span>{t(locale, "report.dimensionNoFinding")}</span>}
+              </div>
             </li>
           );
         })}

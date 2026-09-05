@@ -1,7 +1,8 @@
 import type { ReportSnapshot } from "@dayu/evidence-schema";
 import { t, type Locale } from "@dayu/report-i18n";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { parseNoChangeReview, type NoChangeReview } from "../api/copilot.js";
 import { createScanApi, isScanFailure, pollScan, throwIfAborted, type PublicErrorCode, type ScanApi } from "../api/scans.js";
 import { PartialEvidence } from "../components/PartialEvidence.js";
 import { ScanProgress } from "../components/ScanProgress.js";
@@ -14,6 +15,7 @@ export interface ScanPageProps {
   initialReport?: ReportSnapshot;
   initialErrorCode?: PublicErrorCode;
   initialJobId?: string;
+  initialReview?: NoChangeReview;
   locale: Locale;
   owner: string;
   repo: string;
@@ -21,13 +23,15 @@ export interface ScanPageProps {
 
 const defaultScanApi = createScanApi();
 
-export function ScanPage({ api = defaultScanApi, initialErrorCode, initialJobId, initialReport, locale, owner, repo }: ScanPageProps): React.JSX.Element {
+export function ScanPage({ api = defaultScanApi, initialErrorCode, initialJobId, initialReport, initialReview, locale, owner, repo }: ScanPageProps): React.JSX.Element {
   const repository = `${owner}/${repo}`;
   const [state, setState] = useState<ScanViewState>(() => initialReport === undefined
     ? { kind: "idle" }
     : initialErrorCode === undefined
       ? { ...(initialJobId === undefined ? {} : { jobId: initialJobId }), kind: "report", report: initialReport }
       : { code: initialErrorCode, kind: "error", partial: initialReport });
+  const [review, setReview] = useState<NoChangeReview | undefined>(() => initialReport === undefined ? undefined : parseNoChangeReview(initialReview, initialReport));
+  const boundReview = useMemo(() => state.kind === "report" ? parseNoChangeReview(review, state.report) : undefined, [review, state]);
 
   useEffect(() => {
     if (initialReport !== undefined) return;
@@ -60,11 +64,12 @@ export function ScanPage({ api = defaultScanApi, initialErrorCode, initialJobId,
   return (
     <SiteShell
       locale={locale}
-      {...(state.kind === "report" ? { navigationState: { report: state.report, ...(state.jobId === undefined ? {} : { jobId: state.jobId }) } } : {})}
+      {...(state.kind === "report" ? { navigationState: { report: state.report, ...(state.jobId === undefined ? {} : { jobId: state.jobId }), ...(boundReview === undefined ? {} : { review: boundReview }) } } : {})}
       repositoryPath={`/r/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`}
     >
-      {state.kind === "report" ? <ReportPage {...(state.jobId === undefined ? {} : { jobId: state.jobId })} locale={locale} onEnhanced={(enhanced) => {
+      {state.kind === "report" ? <ReportPage {...(state.jobId === undefined ? {} : { jobId: state.jobId })} {...(boundReview === undefined ? {} : { initialReview: boundReview })} locale={locale} onReviewed={setReview} onEnhanced={(enhanced) => {
         const nextState = { ...(state.jobId === undefined ? {} : { jobId: state.jobId }), kind: "report" as const, report: enhanced };
+        setReview(undefined);
         setState(nextState);
       }} report={state.report} /> : (
       <main className="scan-main" id="main-content" tabIndex={-1}>

@@ -272,7 +272,7 @@ export function classifyRepository(input: RepositoryClassificationInput): Reposi
     coverage: data.coverage,
     evidenceIds,
     modifiers,
-    scoreMode: "normal",
+    scoreMode: confidence < 0.6 ? "facts_only" : "normal",
     type,
   };
 }

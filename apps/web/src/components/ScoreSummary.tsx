@@ -36,12 +36,12 @@ export function ScoreSummary({ description, locale, report }: { description: str
       <h1 id="report-title">{report.repository.fullName}</h1>
       <p className="repository-description">{description ?? t(locale, "report.noDescription")}</p>
       <div className={`score-instrument${unscored ? " is-unscored" : ""}`}>
-        <meter aria-hidden="true" className="score-waterline" max={100} min={0} value={report.score ?? 0} />
+        {unscored ? null : <meter aria-hidden="true" className="score-waterline" max={100} min={0} value={score} />}
         <span className="score-label">{t(locale, "report.score")}</span>
         {unscored ? (
           <div className="insufficient-score">
-            <strong>{t(locale, "report.insufficient")}</strong>
-            <p>{t(locale, "report.insufficientBody")}</p>
+            <strong>{t(locale, report.scoreKind === "facts_only" ? "report.factsOnly" : "report.insufficient")}</strong>
+            <p>{t(locale, report.scoreKind === "facts_only" ? "report.factsOnlyBody" : "report.insufficientBody")}</p>
           </div>
         ) : (
           <div className="precise-score" data-testid="precise-score">

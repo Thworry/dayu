@@ -1,6 +1,6 @@
 import type { NormalizerSnapshot } from "./types.js";
 
-export const SCORING_RULES_VERSION = "rules-v1";
+export const SCORING_RULES_VERSION = "rules-v2";
 
 export const REFERENCE_SCORING_NORMALIZER: Readonly<NormalizerSnapshot> = Object.freeze({
   bands: Object.freeze({

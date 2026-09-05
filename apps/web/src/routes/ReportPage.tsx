@@ -3,7 +3,7 @@ import { t, type Locale } from "@dayu/report-i18n";
 import { renderShareCard } from "@dayu/share-card";
 import { useEffect, useRef, useState } from "react";
 
-import { CopilotApiError, createCopilotApi, type AuthSessionState, type CopilotApi, type EnhancedMetadata } from "../api/copilot.js";
+import { CopilotApiError, createCopilotApi, createNoChangeReview, parseNoChangeReview, sameReportBinding, type AuthSessionState, type CopilotApi, type EnhancedMetadata, type NoChangeReview } from "../api/copilot.js";
 import { BalancedFindings } from "../components/BalancedFindings.js";
 import { CopilotConsent } from "../components/CopilotConsent.js";
 import { CopilotProgress } from "../components/CopilotProgress.js";
@@ -13,6 +13,7 @@ import { Disclaimer } from "../components/Disclaimer.js";
 import { EvidencePanel } from "../components/EvidencePanel.js";
 import { EnhancedDelta } from "../components/EnhancedDelta.js";
 import { ScoreSummary } from "../components/ScoreSummary.js";
+import { ReportOverview } from "../components/ReportOverview.js";
 
 function record(value: Evidence["value"]): Record<string, Evidence["value"]> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
@@ -40,18 +41,36 @@ export interface ReportPageProps {
   jobId?: string;
   locale: Locale;
   onEnhanced?: (report: ReportSnapshot) => void;
+  initialReview?: NoChangeReview;
+  onReviewed?: (review: NoChangeReview) => void;
   report: ReportSnapshot;
+  sample?: boolean;
+}
+
+export function evidenceFeedbackUrl(report: ReportSnapshot): string {
+  return `https://github.com/Thworry/dayu/issues/new?${new URLSearchParams({
+    template: "evidence-dispute.yml",
+    commit: report.sourceCommit,
+    evidence: report.evidence.slice(0, 8).map((item) => item.id).join(","),
+    repository: report.repository.fullName,
+  }).toString()}`;
 }
 
 const defaultCopilotApi = createCopilotApi();
 
-export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEnhanced, report }: ReportPageProps): React.JSX.Element {
+export function reportDownloadPayload(report: ReportSnapshot, review?: NoChangeReview): ReportSnapshot | { schemaVersion: "dayu-review-export-v1"; baseReport: ReportSnapshot; review: NoChangeReview } {
+  const boundReview = parseNoChangeReview(review, report);
+  return boundReview === undefined ? report : { schemaVersion: "dayu-review-export-v1", baseReport: report, review: boundReview };
+}
+
+export function ReportPage({ copilotApi = defaultCopilotApi, initialReview, jobId, locale, onEnhanced, onReviewed, report, sample = false }: ReportPageProps): React.JSX.Element {
   const [shareState, setShareState] = useState<"copied" | "downloading" | "failed" | "idle">("idle");
   const [displayReport, setDisplayReport] = useState(report);
   const [authState, setAuthState] = useState<AuthSessionState>({ kind: "signed_out" });
   const [sessionChecked, setSessionChecked] = useState(false);
   const [copilotState, setCopilotState] = useState<"failed" | "idle" | "running" | "succeeded">(report.copilot === undefined ? "idle" : "succeeded");
   const [enhancedMetadata, setEnhancedMetadata] = useState<EnhancedMetadata | null>(report.copilot ?? null);
+  const [review, setReview] = useState<NoChangeReview | undefined>(() => parseNoChangeReview(initialReview, report));
   const idempotencyKey = useRef<string | null>(null);
   const terminalStatus = useRef<HTMLDivElement>(null);
   const enhancementAbort = useRef<AbortController | null>(null);
@@ -63,7 +82,12 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
     enhancementAbort.current?.abort();
     enhancementAbort.current = null;
     setDisplayReport(report);
-    if (report.copilot !== undefined) {
+    const restoredReview = parseNoChangeReview(initialReview, report);
+    setReview(restoredReview);
+    if (restoredReview !== undefined) {
+      setEnhancedMetadata(restoredReview.metadata);
+      setCopilotState("succeeded");
+    } else if (report.copilot !== undefined) {
       setEnhancedMetadata(report.copilot);
       setCopilotState("succeeded");
     } else {
@@ -71,13 +95,13 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
       setCopilotState("idle");
       idempotencyKey.current = null;
     }
-  }, [jobId, locale, report]);
+  }, [initialReview, jobId, locale, report]);
   useEffect(() => () => { enhancementAbort.current?.abort(); }, []);
   useEffect(() => {
     if (copilotState === "failed" || copilotState === "succeeded") terminalStatus.current?.focus();
   }, [copilotState]);
   useEffect(() => {
-    if (jobId === undefined) return;
+    if (jobId === undefined || sample) return;
     const controller = new AbortController();
     void copilotApi.getSession(controller.signal).then((value) => {
       if (!controller.signal.aborted) {
@@ -91,7 +115,19 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
       }
     });
     return () => { controller.abort(); };
-  }, [copilotApi, jobId]);
+  }, [copilotApi, jobId, sample]);
+
+  function downloadJson(): void {
+    try {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(reportDownloadPayload(displayReport, review), null, 2)], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.download = `${displayReport.repository.fullName.replace(/[^a-z0-9._-]+/gi, "-")}-dayu.json`;
+      anchor.href = url;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setShareState("idle");
+    } catch { setShareState("failed"); }
+  }
 
   async function downloadCard(): Promise<void> {
     setShareState("downloading");
@@ -127,6 +163,23 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
     try {
       const result = await copilotApi.enhance(jobId, { consent: true, csrfToken: authState.session.csrfToken, idempotencyKey: key }, controller.signal);
       if (controller.signal.aborted || generation !== enhancementGeneration.current) return;
+      if (!sameReportBinding(result.baseReport, report)) {
+        setCopilotState("failed");
+        return;
+      }
+      if (result.noChangeReason === "no_scorable_judgments" && result.metadata !== undefined && result.errorCode === undefined) {
+        const completedReview = createNoChangeReview(result.baseReport, result.metadata);
+        if (completedReview === undefined || result.enhancedReport !== null) {
+          setCopilotState("failed");
+          return;
+        }
+        setDisplayReport(result.baseReport);
+        setEnhancedMetadata(result.metadata);
+        setReview(completedReview);
+        setCopilotState("succeeded");
+        onReviewed?.(completedReview);
+        return;
+      }
       if (result.enhancedReport === null || result.metadata === undefined) {
         setDisplayReport(result.baseReport);
         if (result.errorCode === "copilot_revoked") setAuthState({ kind: "signed_out" });
@@ -135,6 +188,7 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
       }
       setDisplayReport(result.enhancedReport);
       setEnhancedMetadata(result.metadata);
+      setReview(undefined);
       setCopilotState("succeeded");
       onEnhanced?.(result.enhancedReport);
     } catch (reason) {
@@ -155,13 +209,6 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
     }
   }
 
-  const feedback = `/feedback?${new URLSearchParams({
-    commit: displayReport.sourceCommit,
-    evidence: displayReport.evidence.map((item) => item.id).join(","),
-    repository: displayReport.repository.fullName,
-    rules: displayReport.rulesVersion,
-  }).toString()}`;
-
   return (
     <main className="report-main" id="main-content" tabIndex={-1}>
       <div className="report-layout">
@@ -169,25 +216,29 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
           <ScoreSummary description={repositoryDescription(displayReport)} locale={locale} report={displayReport} />
         </aside>
         <div className="report-detail-column">
-          <div className="section-heading report-context-heading"><span>01</span><h2>{t(locale, "report.score")}</h2></div>
+          <ReportOverview locale={locale} report={displayReport} />
           <Disclaimer locale={locale} />
+          <DimensionList locale={locale} report={displayReport} />
+          <BalancedFindings locale={locale} report={displayReport} />
           <div className="share-actions">
             <div>
               <button disabled={shareState === "downloading"} onClick={() => { void downloadCard(); }} type="button">
                 <span aria-hidden="true" className="download-icon" />
                 {t(locale, shareState === "downloading" ? "report.share.downloading" : "report.share.download")}
               </button>
-              <button className="secondary-action" onClick={() => { void copyFreshScanLink(); }} type="button">
+              <button className="secondary-action" onClick={downloadJson} type="button">{t(locale, review === undefined ? "report.share.json" : "report.share.reviewJson")}</button>
+              {sample ? null : <button className="secondary-action" onClick={() => { void copyFreshScanLink(); }} type="button">
                 <span aria-hidden="true" className="link-icon" />
                 {t(locale, "report.share.copy")}
-              </button>
+              </button>}
             </div>
-            <p>{t(locale, "report.share.freshScan")}</p>
+            <p>{t(locale, sample ? "report.share.snapshot" : "report.share.freshScan")}</p>
+            {review === undefined ? null : <p>{t(locale, "report.share.reviewJsonNote")}</p>}
             <p aria-live="polite" className="share-status">
               {shareState === "copied" ? t(locale, "report.share.copied") : shareState === "failed" ? t(locale, "report.share.failed") : ""}
             </p>
           </div>
-          {jobId !== undefined && sessionChecked && copilotState !== "succeeded" ? (
+          {!sample && jobId !== undefined && sessionChecked && copilotState !== "succeeded" ? (
             <CopilotConsent
               authState={authState.kind}
               busy={copilotState === "running"}
@@ -201,15 +252,13 @@ export function ReportPage({ copilotApi = defaultCopilotApi, jobId, locale, onEn
             <div className="copilot-failure" ref={terminalStatus} role="alert" tabIndex={-1}><strong>{t(locale, "copilot.failure.title")}</strong><p>{t(locale, "copilot.failure.body")}</p></div>
           ) : null}
           {enhancedMetadata === null ? null : (
-            <div className="copilot-success-status" ref={terminalStatus} tabIndex={-1}><EnhancedDelta enhancedScore={displayReport.score} locale={locale} metadata={enhancedMetadata} rulesScore={displayReport.baseScore} /></div>
+            <div className="copilot-success-status" ref={terminalStatus} tabIndex={-1}><EnhancedDelta enhancedScore={displayReport.score} locale={locale} metadata={enhancedMetadata} rulesScore={displayReport.baseScore} unchanged={review !== undefined} /></div>
           )}
-          <BalancedFindings locale={locale} report={displayReport} />
-          <DimensionList locale={locale} report={displayReport} />
           <DataCoverage locale={locale} report={displayReport} />
           <EvidencePanel locale={locale} report={displayReport} />
           <nav aria-label={t(locale, "report.back")} className="report-links">
-            <a href={`/${locale}`}>{t(locale, "report.back")}</a>
-            <a href={feedback}>{t(locale, "report.feedback")}</a>
+            <a href={sample ? "https://github.com/Thworry/dayu#quick-start" : `/${locale}`}>{t(locale, sample ? "report.runLocally" : "report.back")}</a>
+            <a href={evidenceFeedbackUrl(displayReport)}>{t(locale, "report.feedback")}</a>
           </nav>
         </div>
       </div>

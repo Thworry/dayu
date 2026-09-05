@@ -5,6 +5,7 @@ import { scoreEnhanced, scoreRules } from "./score.js";
 import { scoreMaintenance } from "./rules/maintenance.js";
 import { scoreCommunity } from "./rules/community.js";
 import { scorePopularity } from "./rules/popularity.js";
+import { scoreClaims } from "./rules/claims.js";
 import { classification, fullEvidence, input } from "./score.test.js";
 
 function replaceMetric(metric: string, value: JsonValue, status: "complete" | "restricted" = "complete"): Evidence[] {
@@ -73,6 +74,14 @@ describe("scoring invariants", () => {
     expect(report.findings).toEqual([]);
   });
 
+  it.each([0, 0.45, 0.59, Number.NaN])("withholds type-dependent judgments at taxonomy confidence %s", (confidence) => {
+    const report = scoreRules(input({ classification: { ...classification, confidence, scoreMode: "normal" } }));
+    expect(report).toMatchObject({ baseScore: null, score: null, scoreKind: "facts_only", findings: [], positiveSignals: [] });
+    expect(Object.values(report.dimensionScores)).toEqual([null, null, null, null, null]);
+    expect(report.missingSignals).toContain("taxonomy.low_confidence");
+    expect(report.evidence).toEqual(fullEvidence());
+  });
+
   it("caps 60 and 80 verdicts unless independent dimension and confidence gates pass", () => {
     const rulesReport = scoreRules(input());
     const oneDimension = rulesReport.dimensionScores;
@@ -95,6 +104,54 @@ describe("scoring invariants", () => {
       rulesReport,
     });
     expect(report.findings.every((finding) => finding.producer === "rule")).toBe(true);
+    expect(report).toEqual(rulesReport);
+  });
+
+  it.each(["not_applicable", "unverifiable"] as const)("preserves the exact rules report when every AI verdict is %s", (verdict) => {
+    const rulesReport = scoreRules(input());
+    const evidenceId = rulesReport.evidence[0]?.id;
+    if (evidenceId === undefined) throw new Error("fixture evidence missing");
+    const report = scoreEnhanced({
+      aiConfidence: { applicableCoverage: 1, evidenceScopeCompleteness: 1, sampleAdequacy: 1 },
+      aiFindings: [{ counterEvidenceIds: [], dimension: "claims", en: "No judgment.", evidenceIds: [evidenceId], rubricId: "ai.claims", verdict, zh: "无法判断。" }],
+      rulesReport,
+    });
+    expect(report).toEqual(rulesReport);
+  });
+
+  it.each(["missing", "restricted", "partial", "unverifiable"] as const)("does not turn %s release evidence into a contradicted release claim", (status) => {
+    const releaseOnly = fullEvidence().flatMap((item) => {
+      if (item.fact.metric === "repository.releases") {
+        if (status === "missing") return [];
+        const value = { available: false };
+        return [{ ...item, status, value, fact: { ...item.fact, value } }];
+      }
+      if (item.fact.metric !== "repository.file_content") return [item];
+      const value = { bytes: 28, path: "README.md", text: "# Product\nProduction ready." };
+      return [{ ...item, value, fact: { ...item.fact, value } }];
+    });
+    const result = scoreClaims({ analyzedAt: input().analyzedAt, classification, evidence: releaseOnly, normalizer: input().normalizer, rulesVersion: "rules-2" });
+    expect(result).toMatchObject({ coverage: 0, risk: null, findings: [], positiveSignals: [], missingSignals: ["claims.release_evidence"] });
+  });
+
+  it("reduces claim coverage when only the installation claim can be checked", () => {
+    const partial = fullEvidence().filter((item) => item.fact.metric !== "repository.releases");
+    const result = scoreClaims({ analyzedAt: input().analyzedAt, classification, evidence: partial, normalizer: input().normalizer, rulesVersion: "rules-2" });
+    expect(result.coverage).toBeCloseTo(0.6);
+    expect(result.missingSignals).toContain("claims.release_evidence");
+    expect(result.risk).toBe(100);
+  });
+
+  it("can corroborate a release claim with an observed workflow when releases are unavailable", () => {
+    const evidence = fullEvidence().filter((item) => item.fact.metric !== "repository.releases").map((item) => {
+      if (item.fact.metric !== "repository.tree") return item;
+      const files = ["README.md", "package.json", ".github/workflows/release.yml"].map((path) => ({ path, size: 100, type: "blob" }));
+      const value = { apiTruncated: false, completeForNegativeEvidence: true, files, observedEntries: files.length };
+      return { ...item, value, fact: { ...item.fact, value } };
+    });
+    const result = scoreClaims({ analyzedAt: input().analyzedAt, classification, evidence, normalizer: input().normalizer, rulesVersion: "rules-2" });
+    expect(result).toMatchObject({ coverage: 1, risk: 0, missingSignals: [] });
+    expect(result.positiveSignals).toHaveLength(1);
   });
 
   it("marks claims unavailable when no install or release claim applies", () => {
@@ -226,7 +283,7 @@ describe("scoring invariants", () => {
       ? { ...item, status: "restricted" as const, value: { available: false }, fact: { ...item.fact, value: { available: false } } }
       : item);
     const below = scoreRules(input({ evidence: belowGateEvidence }));
-    expect(below.availableWeight).toBeCloseTo(0.43);
+    expect(below.availableWeight).toBeCloseTo(0.41);
     expect(below.score).toBeNull();
   });
 

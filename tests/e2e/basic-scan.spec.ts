@@ -31,14 +31,14 @@ for (const scenario of [
 
 test("tree truncation has its own partial-evidence caveat", async ({ page }) => {
   await scanToReport(page, "owner/tree-truncated");
-  await expect(page.getByText("Partial", { exact: true })).toBeVisible();
-  await expect(page.getByText("github_tree_truncated", { exact: true })).toBeVisible();
-  await expect(page.getByText("github_data_being_generated", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".status-line")).toHaveText("Partial");
+  await expect(page.getByText("GitHub returned an incomplete file tree", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("GitHub was still preparing the data", { exact: true })).toHaveCount(0);
 });
 
 test("statistics 202 has a distinct data-generation caveat", async ({ page }) => {
   await scanToReport(page, "owner/stats-pending");
-  await expect(page.getByText("Partial", { exact: true })).toBeVisible();
-  await expect(page.getByText("github_data_being_generated", { exact: true })).toBeVisible();
-  await expect(page.getByText("github_tree_truncated", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".status-line")).toHaveText("Partial");
+  await expect(page.getByText("GitHub was still preparing the data", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("GitHub returned an incomplete file tree", { exact: true })).toHaveCount(0);
 });

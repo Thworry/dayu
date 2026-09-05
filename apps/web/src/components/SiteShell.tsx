@@ -1,7 +1,8 @@
 import { t, type Locale } from "@dayu/report-i18n";
-import { useEffect, type PropsWithChildren } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
 import { Link, useInRouterContext } from "react-router-dom";
 
+import { isStaticPreview } from "../app/build-mode.js";
 import { oppositeLocale } from "../i18n/locale.js";
 
 export interface SiteShellProps extends PropsWithChildren {
@@ -12,22 +13,35 @@ export interface SiteShellProps extends PropsWithChildren {
 
 export function SiteShell({ children, locale, navigationState, repositoryPath = "" }: SiteShellProps): React.JSX.Element {
   const inRouter = useInRouterContext();
+  const [evidenceHash, setEvidenceHash] = useState(() => isStaticPreview ? window.location.hash : "");
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
+  useEffect(() => {
+    if (!isStaticPreview) return;
+    const updateEvidenceHash = () => { setEvidenceHash(window.location.hash); };
+    window.addEventListener("hashchange", updateEvidenceHash);
+    return () => { window.removeEventListener("hashchange", updateEvidenceHash); };
+  }, []);
   const alternate = oppositeLocale(locale);
-  const alternatePath = repositoryPath === "" ? `/${alternate}` : `/${alternate}${repositoryPath}`;
+  const alternatePath = isStaticPreview ? `?lang=${alternate}${evidenceHash}` : repositoryPath === "" ? `/${alternate}` : `/${alternate}${repositoryPath}`;
+  const homePath = isStaticPreview ? `?lang=${locale}` : `/${locale}`;
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main-content">{locale === "zh" ? "跳到主要内容" : "Skip to main content"}</a>
       <header className="site-header">
-        <a aria-label={`${t(locale, "common.brand")} — ${t(locale, "common.subtitle")}`} className="brand" href={`/${locale}`}>
+        <a aria-label={`${t(locale, "common.brand")} — ${t(locale, "common.subtitle")}`} className="brand" href={homePath}>
           <span aria-hidden="true" className="brand-seal"><span /></span>
           <span className="brand-name">{t(locale, "common.brand")}</span>
           <span className="brand-divider" />
           <span className="brand-subtitle">{t(locale, "common.subtitle")}</span>
         </a>
-        <nav aria-label={t(locale, "common.language")}>
+        <nav aria-label={locale === "zh" ? "主导航" : "Main navigation"} className="site-navigation">
+          {isStaticPreview ? (
+            <a className="sample-navigation" href="https://github.com/Thworry/dayu">GitHub<span aria-hidden="true">↗</span></a>
+          ) : (
+            <a aria-current={repositoryPath === "/sample" ? "page" : undefined} className="sample-navigation" href={`/${locale}/sample`}>{locale === "zh" ? "样例报告" : "Sample report"}</a>
+          )}
           {navigationState === undefined || !inRouter ? <a className="locale-switch" href={alternatePath} hrefLang={alternate}>
             <span aria-hidden="true">{locale.toUpperCase()}</span>
             <span className="locale-arrow" aria-hidden="true" />

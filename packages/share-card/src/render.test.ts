@@ -1,7 +1,8 @@
 import type { ReportSnapshot } from "@dayu/evidence-schema";
+import { t } from "@dayu/report-i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { renderShareCard } from "./render.js";
+import { measuredLines, renderShareCard } from "./render.js";
 
 const report = {
   baseScore: 43,
@@ -37,6 +38,23 @@ afterEach(() => {
 });
 
 describe("renderShareCard", () => {
+  it("wraps English at word boundaries when a complete word fits", () => {
+    const context = { measureText: (text: string) => ({ width: text.length * 10 }) } as CanvasRenderingContext2D;
+    expect(measuredLines(context, "known words stay whole", 100, 4)).toEqual(["known", "words stay", "whole"]);
+  });
+  it.each(["en", "zh"] as const)("keeps the confidence caveat on the %s card", async (locale) => {
+    const drawn: string[] = [];
+    class FakeCanvas {
+      convertToBlob = () => Promise.resolve(new Blob([], { type: "image/png" }));
+      getContext = () => ({
+        beginPath: vi.fn(), fillRect: vi.fn(), fillStyle: "", fillText: (text: string) => { drawn.push(text); }, font: "",
+        lineTo: vi.fn(), measureText: (text: string) => ({ width: text.length * 10 }), moveTo: vi.fn(), stroke: vi.fn(), strokeStyle: "", textBaseline: "alphabetic",
+      });
+    }
+    vi.stubGlobal("OffscreenCanvas", FakeCanvas);
+    await renderShareCard(report, locale);
+    expect(drawn.join("").replace(/\s/g, "")).toContain(t(locale, "report.share.confidenceContext").replace(/\s/g, ""));
+  });
   it("draws repository strings as canvas text and returns a 1200 by 630 PNG", async () => {
     const fillText = vi.fn();
     const context = {

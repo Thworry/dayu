@@ -51,6 +51,7 @@ export interface EnhancementResult {
   enhancedReport: ReportSnapshot | null;
   errorCode?: CopilotFailureCode;
   metadata?: EnhancedMetadata;
+  noChangeReason?: "no_scorable_judgments";
 }
 
 export interface EnhanceJobInput {
@@ -98,12 +99,13 @@ function classify(reason: unknown): CopilotFailureCode {
 }
 
 function confidence(report: ReportSnapshot, analysis: CopilotAnalysis): AiConfidenceInput {
-  const complete = report.evidence.filter((item) => item.status === "complete").length;
-  const usable = report.evidence.filter((item) => item.status === "complete" || item.status === "partial").length;
-  const coveredDimensions = new Set(analysis.findings.map((finding) => finding.dimension)).size;
+  const scopedEvidence = report.evidence.filter((item) => item.status !== "not_applicable");
+  const complete = scopedEvidence.filter((item) => item.status === "complete").length;
+  const adjudicated = analysis.findings.filter((finding) => finding.verdict === "supported" || finding.verdict === "mixed" || finding.verdict === "contradicted");
+  const coveredDimensions = new Set(adjudicated.map((finding) => finding.dimension)).size;
   return {
-    applicableCoverage: Math.min(1, analysis.findings.length / 6),
-    evidenceScopeCompleteness: usable === 0 ? 0 : complete / usable,
+    applicableCoverage: Math.min(1, new Set(adjudicated.map((finding) => finding.rubricId)).size / 6),
+    evidenceScopeCompleteness: scopedEvidence.length === 0 ? 0 : complete / scopedEvidence.length,
     sampleAdequacy: Math.min(1, coveredDimensions / 4),
   };
 }
@@ -155,6 +157,11 @@ export async function enhanceJob(input: EnhanceJobInput): Promise<EnhancementRes
       promptVersion: COPILOT_PROMPT_VERSION,
       rubricVersion: COPILOT_RUBRIC_VERSION,
     };
+    const hasJudgments = [...scored.findings, ...scored.positiveSignals].some((finding) => finding.producer === "copilot");
+    if (scored.scoreKind === "rules_only" || scored.scoreKind === "facts_only" || !hasJudgments) {
+      throwIfCancelled(input.signal);
+      return { baseReport, enhancedReport: null, metadata, noChangeReason: "no_scorable_judgments" };
+    }
     const enhancedReport: ReportSnapshot = { ...scored, copilot: metadata };
     throwIfCancelled(input.signal);
     return {

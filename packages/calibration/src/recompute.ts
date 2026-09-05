@@ -5,7 +5,7 @@ import { SCORING_RULES_VERSION, scoreRules, type NormalizerSnapshot, type RulesR
 
 import type { GoldenCase, GoldenCaseSet } from "./schema.js";
 
-export const SCORING_PIPELINE_VERSION = "scoring-pipeline-v1";
+export const SCORING_PIPELINE_VERSION = "scoring-pipeline-v2";
 
 function canonical(value: unknown): unknown {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
@@ -41,6 +41,7 @@ export function reviewLabelDigest(item: GoldenCase): string {
     },
     scoringInputDigest: item.scoringInputDigest,
     scoringOutputDigest: item.scoringOutputDigest,
+    ...(item.scoreKind === undefined ? {} : { scoreKind: item.scoreKind }),
   });
 }
 
@@ -54,7 +55,7 @@ export function reviewLabelsMatchManifest(golden: GoldenCaseSet): boolean {
 }
 
 export interface RecomputedGoldenCase {
-  currentScore: number;
+  currentScore: number | null;
   inputDigest: string;
   outputDigest: string;
   report: RulesReport;
@@ -75,7 +76,6 @@ export function recomputeScoringInput(scoringInput: GoldenCase["scoringInput"], 
     ...(scoringInput.ownerFollowers === undefined ? {} : { ownerFollowers: scoringInput.ownerFollowers }),
     rulesVersion: SCORING_RULES_VERSION,
   });
-  if (report.score === null) return null;
   return {
     currentScore: report.score,
     inputDigest: sha256Digest({
@@ -92,7 +92,9 @@ export function recomputeScoringInput(scoringInput: GoldenCase["scoringInput"], 
 }
 
 export function recomputeGoldenCase(item: GoldenCase, normalizer: NormalizerSnapshot): RecomputedGoldenCase | null {
-  return recomputeScoringInput(item.scoringInput, normalizer);
+  const recomputed = recomputeScoringInput(item.scoringInput, normalizer);
+  if (recomputed !== null && item.scoreKind !== undefined && recomputed.report.scoreKind !== item.scoreKind) return null;
+  return recomputed;
 }
 
 export function recomputedManifestDigest(golden: GoldenCaseSet, normalizer: NormalizerSnapshot): string | null {

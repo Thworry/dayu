@@ -42,7 +42,7 @@ function FindingColumn({ findings, heading, locale, tone }: { findings: Finding[
 export function BalancedFindings({ locale, report }: { locale: Locale; report: ReportSnapshot }): React.JSX.Element {
   return (
     <section aria-labelledby="findings-heading" className="findings-section">
-      <div className="section-heading"><span>02</span><h2 id="findings-heading">{t(locale, "report.positiveHeading")} / {t(locale, "report.cautionHeading")}</h2></div>
+      <div className="section-heading"><span>03</span><h2 id="findings-heading">{t(locale, "report.positiveHeading")} / {t(locale, "report.cautionHeading")}</h2></div>
       <div className="balanced-findings">
         <FindingColumn findings={report.positiveSignals} heading={t(locale, "report.positiveHeading")} locale={locale} tone="positive" />
         <FindingColumn findings={report.findings} heading={t(locale, "report.cautionHeading")} locale={locale} tone="caution" />

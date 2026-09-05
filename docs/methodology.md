@@ -42,9 +42,13 @@ Higher values mean greater visible inconsistency risk. DAYU does not call the va
 
 Rules compare observable ratios and claim-to-artifact relationships. Each rule declares its version, evidence dependencies, limitations, and positive counter-signals. Negative evidence is used only when the relevant collection scope is complete enough to support absence. Tree truncation, bounded activity samples, external trackers, generated or binary-heavy repositories, monorepos, new repositories, and mature stable projects add caveats or alter applicability.
 
-Repositories are classified as software, documentation/content, data/model, template, creative demo, or generic. Fork, mirror, template, archived, generated-heavy, binary/LFS, monorepo, new-repository, and mature-stable modifiers prevent a one-size-fits-all comparison. Low-confidence taxonomy can force facts-only output.
+Repositories are classified as software, documentation/content, data/model, template, creative demo, or generic. Fork, mirror, template, archived, generated-heavy, binary/LFS, monorepo, new-repository, and mature-stable modifiers prevent a one-size-fits-all comparison. Taxonomy confidence below 0.60 forces facts-only output: the evidence remains available, while type-dependent findings, dimension scores, and the overall score are withheld.
+
+类型判断置信度低于 0.60 时，只展示公开事实，保留证据，不输出类型相关的风险判断、分项分数或总分。
 
 Available weight is calculated from the dimensions for which required evidence is usable. Below 60% available weight, DAYU withholds the numeric score and returns `insufficient_evidence` or `facts_only`. Missing data never receives a neutral zero merely to make a complete-looking score. Confidence is reported separately from signal strength.
+
+A release claim can only be checked against an observed workflow or a complete, usable release response. An unavailable release endpoint is not evidence of a missing release; that check is omitted and claim coverage falls accordingly.
 
 ## Cohorts and normalizers / 同类组与归一化
 
@@ -52,10 +56,14 @@ Calibration cohorts are stratified by repository type, age band, star band, and 
 
 The repository currently includes a 12-row **synthetic example** carrying the `normalizer-v1` scoring payload. It exercises the schema and API/reference digest binding, but is excluded from public claims and production calibration by its `synthetic_sample` classification.
 
+The current runtime applies the same experimental reference thresholds to all repositories. It does not select a matched cohort by type, age, stars, or ecosystem, and its values are not measured population percentiles. The stratified cohort requirements above describe the calibration work still needed; they are not a claim that current reports already compare a repository against real peers.
+
+当前运行时使用统一的实验参考阈值，尚未按类型、年龄、Stars 或技术生态匹配真实同类仓库；报告中的信号等级不是实测的总体分位数。
+
 Public Beta requires:
 
 - at least 5,000 stratified public repositories in an aggregate normalizer;
-- at least 120 blind-reviewed golden cases with structured review provenance, including at least 80 ordinary and 40 risk cases and at least five of each per repository type;
+- at least 120 blind-reviewed golden cases with structured review provenance, including at least 80 numerically scored ordinary cases and 40 numerically scored risk cases, plus at least five ordinary and five risk reviews per repository type (including audited facts-only cases);
 - scores bound by digests to the current rules, taxonomy, normalizer, and protected production scoring pipeline;
 - a threshold claim supported by its two-sided 95% Wilson interval;
 - completed security/release gates and live minimal-permission Copilot entitlement checks.
@@ -65,6 +73,8 @@ Stable v1 requires at least 30,000 repositories and 600 double-reviewed golden c
 ## Golden cases and error reporting / 黄金案例与误差报告
 
 The evaluator publishes false positives and false negatives separately at thresholds 60 and 80, two-sided 95% Wilson intervals for false-positive rates, per-type score distributions, changed cases, and challenge-set outcomes. Wilson intervals remain conservative when no false positive is observed; a tiny sample can never report a misleading `[0, 0]`. A claim of “at most 5% false positives at 60” is allowed only when the upper 95% confidence bound is at most 5%. The equivalent claim at 80 requires an upper bound at most 1%.
+
+Facts-only and insufficient-evidence golden cases carry a null score and an explicit score kind, bound to the reviewed label and replayed report. They count as audited cases but never as numeric predictions, true negatives, or members of the 80/40 numeric populations. Evaluations publish abstention counts overall and by type; threshold error rates, confidence intervals, and score distributions exclude abstentions. An all-abstention dataset reports no accuracy and cannot pass the numeric population gates.
 
 The release gate does not accept a caller-supplied evaluation. It selects qualifying, blind-reviewed, successfully replayed cases and recomputes all metrics internally. Copilot account checks and the zero-open-high-severity security review are structured current-workflow evidence, not booleans. The ordinary CI workflow reports pre-beta status for inspection; only the tag/manual release workflow runs the fail-closed `--require-beta` gate.
 
@@ -82,8 +92,12 @@ Audit and manual findings are merged before release. The composer records all fo
 
 Copilot is optional and user-authorized. The adapter selects a bounded evidence envelope, strips likely secret and personal-data fields, treats repository content as untrusted quoted data, disables tools, and requires citations to Evidence IDs visible in that exact prompt. Output is schema-validated, checked for unsupported citations and accusatory language, and discarded on timeout, quota exhaustion, malformed output, policy denial, or cleanup failure. In every failure case the base rules report remains available.
 
+Only evidence-bound supported, mixed, or contradicted judgments contribute to AI coverage. Not-applicable and unverifiable rubrics do not increase confidence or dimension coverage. When no scoreable judgment survives, DAYU preserves the exact base report and explicitly reports that the analysis added no scoreable judgments. Restricted or unavailable evidence remains in the evidence-completeness denominator.
+
+Copilot 返回“不适用”或“无法验证”不会提高置信度。没有可计分判断时，保留原始规则报告与分数，并明确说明本次分析没有增加可计分判断。
+
 No live claim is currently made about Copilot Free, Pro, or organization-managed account compatibility. Those checks require real accounts in a protected release environment and remain an unmet Beta gate.
 
 ## Version changes / 版本变更
 
-Reports pin collector, taxonomy, rule, normalizer, prompt, and rubric versions as applicable. Any weight, threshold, taxonomy, evidence-coverage, or normalizer change requires fixture tests and an impact report against the qualifying golden set. Historical output must not be silently reinterpreted under new rules; users should rescan for current data.
+Reports pin collector, rule, normalizer, prompt, and rubric versions as applicable; calibration manifests additionally bind taxonomy and scoring-pipeline versions. Current runtime versions are `rules-v2`, `taxonomy-v2`, and `scoring-pipeline-v2`. Any weight, threshold, taxonomy, evidence-coverage, or normalizer change requires fixture tests and an impact report against the qualifying golden set. Historical output must not be silently reinterpreted under new rules; users should rescan for current data. The committed v1 synthetic JSON remains historical and cannot qualify a current release.

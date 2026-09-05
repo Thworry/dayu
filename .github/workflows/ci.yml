@@ -25,6 +25,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter @dayu/web build:preview
       - run: pnpm ci:links
       - run: pnpm --filter @dayu/calibration evaluate
 

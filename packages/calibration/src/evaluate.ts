@@ -25,17 +25,21 @@ export interface ThresholdEvaluation {
 }
 
 export interface ChallengeOutcome {
+  abstainedCount: number;
   accuracy: number | null;
   caseCount: number;
   correctCount: number;
 }
 
 export interface CalibrationEvaluation {
+  abstainedCaseCount: number;
   caseCount: number;
   challengeOutcomes: Record<string, ChallengeOutcome>;
-  changedCases: { currentScore: number; id: string; previousScore: number }[];
+  changedCases: { currentScore: number | null; id: string; previousScore: number }[];
+  perTypeAbstentions: Partial<Record<RepositoryType, number>>;
   perTypeScoreDistributions: Partial<Record<RepositoryType, { count: number; max: number; mean: number; min: number }>>;
   thresholds: Record<"60" | "80", ThresholdEvaluation>;
+  scoredCaseCount: number;
 }
 
 function ratio(numerator: number, denominator: number): number | null {
@@ -67,6 +71,7 @@ function evaluateThreshold(cases: readonly GoldenCase[], threshold: 60 | 80): Th
   let trueNegativeCount = 0;
   let truePositiveCount = 0;
   for (const item of cases) {
+    if (item.currentScore === null) continue;
     const predictedRisk = item.currentScore >= threshold;
     if (item.expected === "risk" && predictedRisk) truePositiveCount += 1;
     else if (item.expected === "risk") falseNegativeCount += 1;
@@ -87,30 +92,39 @@ function evaluateThreshold(cases: readonly GoldenCase[], threshold: 60 | 80): Th
 
 function evaluateCases(cases: readonly GoldenCase[]): CalibrationEvaluation {
   const perType = new Map<RepositoryType, number[]>();
-  const challenges = new Map<string, { caseCount: number; correctCount: number }>();
+  const abstentions = new Map<RepositoryType, number>();
+  const challenges = new Map<string, { abstainedCount: number; caseCount: number; correctCount: number }>();
   for (const item of cases) {
-    const scores = perType.get(item.repositoryType) ?? [];
-    scores.push(item.currentScore);
-    perType.set(item.repositoryType, scores);
+    if (item.currentScore === null) abstentions.set(item.repositoryType, (abstentions.get(item.repositoryType) ?? 0) + 1);
+    else {
+      const scores = perType.get(item.repositoryType) ?? [];
+      scores.push(item.currentScore);
+      perType.set(item.repositoryType, scores);
+    }
     for (const tag of item.challengeTags) {
-      const outcome = challenges.get(tag) ?? { caseCount: 0, correctCount: 0 };
+      const outcome = challenges.get(tag) ?? { abstainedCount: 0, caseCount: 0, correctCount: 0 };
       outcome.caseCount += 1;
-      const predicted = item.currentScore >= 60 ? "risk" : "ordinary";
-      if (predicted === item.expected) outcome.correctCount += 1;
+      if (item.currentScore === null) outcome.abstainedCount += 1;
+      else {
+        const predicted = item.currentScore >= 60 ? "risk" : "ordinary";
+        if (predicted === item.expected) outcome.correctCount += 1;
+      }
       challenges.set(tag, outcome);
     }
   }
   return {
+    abstainedCaseCount: cases.filter((item) => item.currentScore === null).length,
     caseCount: cases.length,
     challengeOutcomes: Object.fromEntries([...challenges.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([tag, outcome]) => [tag, {
       ...outcome,
-      accuracy: ratio(outcome.correctCount, outcome.caseCount),
+      accuracy: ratio(outcome.correctCount, outcome.caseCount - outcome.abstainedCount),
     }])),
     changedCases: cases.flatMap((item) => item.previousScore === null || item.previousScore === item.currentScore ? [] : [{
       currentScore: item.currentScore,
       id: item.id,
       previousScore: item.previousScore,
     }]),
+    perTypeAbstentions: Object.fromEntries(abstentions),
     perTypeScoreDistributions: Object.fromEntries([...perType.entries()].map(([type, values]) => [type, {
       count: values.length,
       max: Math.max(...values),
@@ -121,6 +135,7 @@ function evaluateCases(cases: readonly GoldenCase[]): CalibrationEvaluation {
       "60": evaluateThreshold(cases, 60),
       "80": evaluateThreshold(cases, 80),
     },
+    scoredCaseCount: cases.filter((item) => item.currentScore !== null).length,
   };
 }
 
@@ -272,8 +287,10 @@ export function evaluateReleaseGate(normalizer: NormalizerSnapshot, golden: Gold
   const runtime = parsedRuntime.success ? parsedRuntime.data : null;
   const cases = qualifyingCases(golden, normalizer, evidence, runtime);
   const evaluation = evaluateCases(cases);
-  const ordinaryCases = cases.filter((item) => item.expected === "ordinary").length;
-  const riskCases = cases.filter((item) => item.expected === "risk").length;
+  // Abstentions remain blind-reviewed audit cases, but never count as numeric
+  // predictions or satisfy the minimum scoreable ordinary/risk populations.
+  const ordinaryCases = cases.filter((item) => item.currentScore !== null && item.expected === "ordinary").length;
+  const riskCases = cases.filter((item) => item.currentScore !== null && item.expected === "risk").length;
   const balancedTypes = REPOSITORY_TYPES.filter((type) => {
     const ofType = cases.filter((item) => item.repositoryType === type);
     return ofType.filter((item) => item.expected === "ordinary").length >= 5

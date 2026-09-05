@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 
 import { createEvidenceId, type Evidence, type JsonValue } from "@dayu/evidence-schema";
-import { REFERENCE_SCORING_NORMALIZER } from "@dayu/scoring-core";
+import { REFERENCE_SCORING_NORMALIZER, SCORING_RULES_VERSION } from "@dayu/scoring-core";
+import { TAXONOMY_VERSION } from "@dayu/repository-taxonomy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { composeReleaseEvidence } from "./compose.js";
 import { buildCohorts, type CalibrationRepository } from "./cohorts.js";
-import { evaluateReleaseGate, wilson95 } from "./evaluate.js";
-import { recomputedManifestDigest, recomputeScoringInput, reviewLabelDigest, reviewedLabelManifestDigest, sha256Digest } from "./recompute.js";
+import { evaluateGoldenCases, evaluateReleaseGate, wilson95 } from "./evaluate.js";
+import { recomputedManifestDigest, recomputeScoringInput, reviewLabelDigest, reviewedLabelManifestDigest, SCORING_PIPELINE_VERSION, sha256Digest } from "./recompute.js";
 import { parseGoldenCaseSet, parseNormalizerSnapshot } from "./schema.js";
 import { manualSecurityReviewManifestDigest, manualSecurityReviewManifestSchema, protectedManualReviewSourceDigest, securityFindingsManifestDigest, securityReviewArtifactSchema, securityReviewManifestDigest } from "./security-review.js";
 
@@ -102,7 +103,7 @@ function publicNormalizer() {
     dataClassification: "public_aggregate",
     generatedAt: OBSERVED,
     immutable: true,
-    provenance: { collectorVersion: "collector-v1", manifestDigest: DIGEST_A, source: "public_github_aggregate", taxonomyVersion: "taxonomy-v1" },
+    provenance: { collectorVersion: "collector-v1", manifestDigest: DIGEST_A, source: "public_github_aggregate", taxonomyVersion: TAXONOMY_VERSION },
     repositoryCount: 5_000,
     schemaVersion: "1",
     scoringNormalizer: REFERENCE_SCORING_NORMALIZER,
@@ -110,15 +111,16 @@ function publicNormalizer() {
   });
 }
 
-function productionGolden(normalizer: ReturnType<typeof publicNormalizer>) {
-  const rawCases = Array.from({ length: 126 }, (_, index) => {
-    const expected = index < 84 ? "ordinary" as const : "risk" as const;
-    const input = scoringInput(index, TYPES[index % TYPES.length] ?? "generic");
+function productionGolden(normalizer: ReturnType<typeof publicNormalizer>, allFactsOnly = false) {
+  const rawCases = Array.from({ length: 150 }, (_, index) => {
+    const expected = index < 96 ? "ordinary" as const : "risk" as const;
+    const input = scoringInput(index, allFactsOnly ? "generic" : TYPES[index % TYPES.length] ?? "generic");
     const recomputed = recomputeScoringInput(input, normalizer.scoringNormalizer);
     if (recomputed === null) throw new Error("fixture must produce a score");
     return {
       challengeTags: ["current-rules-replay"],
       currentScore: recomputed.currentScore,
+      scoreKind: recomputed.report.scoreKind,
       expected,
       id: `case_${String(index)}`,
       previousScore: null,
@@ -130,7 +132,7 @@ function productionGolden(normalizer: ReturnType<typeof publicNormalizer>) {
     };
   });
   const base = {
-    bindings: { normalizerVersion: normalizer.version, pipelineVersion: "scoring-pipeline-v1", rulesVersion: "rules-v1", taxonomyVersion: "taxonomy-v1" },
+    bindings: { normalizerVersion: normalizer.version, pipelineVersion: SCORING_PIPELINE_VERSION, rulesVersion: SCORING_RULES_VERSION, taxonomyVersion: TAXONOMY_VERSION },
     cases: rawCases,
     dataClassification: "blind_reviewed_public" as const,
     generatedAt: OBSERVED,
@@ -210,6 +212,46 @@ describe("calibration cohorts", () => {
 });
 
 describe("genuine release scoring", () => {
+  it("requires explicit abstention provenance for null golden scores", () => {
+    const golden = productionGolden(publicNormalizer());
+    const unscored = golden.cases.find((item) => item.currentScore === null);
+    if (unscored === undefined) throw new Error("facts-only fixture required");
+    expect(unscored.scoreKind).toBe("facts_only");
+    expect(() => parseGoldenCaseSet({ ...golden, cases: [{ ...unscored, scoreKind: undefined }] })).toThrow();
+    expect(() => parseGoldenCaseSet({ ...golden, cases: [{ ...unscored, currentScore: 0 }] })).toThrow();
+  });
+
+  it("reports audited abstentions separately without converting them to successful predictions", () => {
+    const normalizer = publicNormalizer();
+    const golden = productionGolden(normalizer, true);
+    const diagnostic = evaluateGoldenCases(golden);
+    expect(diagnostic).toMatchObject({ abstainedCaseCount: 150, scoredCaseCount: 0, perTypeScoreDistributions: {}, perTypeAbstentions: { generic: 150 } });
+    expect(diagnostic.thresholds["60"]).toMatchObject({ trueNegativeCount: 0, falseNegativeCount: 0, falsePositiveCount: 0, truePositiveCount: 0, falsePositiveRate: null, falseNegativeRate: null });
+    expect(diagnostic.challengeOutcomes["current-rules-replay"]).toMatchObject({ accuracy: null, abstainedCount: 150, correctCount: 0 });
+    const { releaseEvidence, runtime } = releaseArtifacts(golden, normalizer);
+    const gate = evaluateReleaseGate(normalizer, golden, releaseEvidence, runtime);
+    expect(gate.requirements.qualifyingBlindReviewedCases.actual).toBe(150);
+    expect(gate.requirements.ordinaryCases.actual).toBe(0);
+    expect(gate.requirements.riskCases.actual).toBe(0);
+    expect(gate.claims).toEqual({ falsePositiveAt60Supported: false, falsePositiveAt80Supported: false });
+    expect(gate.status).toBe("pre_beta_not_ready");
+  });
+
+  it.each(["numeric_score", "abstention_kind", "review_label"] as const)("rejects tampered %s on a replayed facts-only case", (change) => {
+    const normalizer = publicNormalizer();
+    const golden = productionGolden(normalizer);
+    const { releaseEvidence, runtime } = releaseArtifacts(golden, normalizer);
+    const cases = golden.cases.map((item) => item.id !== "case_5" ? item
+      : change === "numeric_score" ? { ...item, currentScore: 0, scoreKind: "rules_only" as const }
+      : change === "abstention_kind" ? { ...item, scoreKind: "insufficient_evidence" as const }
+      : { ...item, expected: "risk" as const });
+    const tampered = parseGoldenCaseSet({ ...golden, cases });
+    expect(reviewedLabelManifestDigest(tampered)).not.toBe(golden.reviewedLabelManifestDigest);
+    const gate = evaluateReleaseGate(normalizer, tampered, releaseEvidence, runtime);
+    expect(gate.status).toBe("pre_beta_not_ready");
+    expect(gate.reasons).toContain("production_scoring_pipeline_not_verified_or_unbound");
+  });
+
   it("reaches beta_ready only through current scoreRules replay and current-run evidence", () => {
     const normalizer = publicNormalizer();
     const golden = productionGolden(normalizer);
@@ -217,7 +259,11 @@ describe("genuine release scoring", () => {
     const gate = evaluateReleaseGate(normalizer, golden, releaseEvidence, runtime);
     expect(gate.reasons).toEqual([]);
     expect(gate.status).toBe("beta_ready");
-    expect(gate.evaluation.caseCount).toBe(126);
+    expect(gate.evaluation.caseCount).toBe(150);
+    expect(gate.evaluation.scoredCaseCount).toBe(125);
+    expect(gate.evaluation.abstainedCaseCount).toBe(25);
+    expect(gate.requirements.ordinaryCases.actual).toBe(80);
+    expect(gate.requirements.riskCases.actual).toBe(45);
     expect(gate.claims.falsePositiveAt60Supported).toBe(true);
   });
 
@@ -228,11 +274,11 @@ describe("genuine release scoring", () => {
     const first = golden.cases[0];
     if (first === undefined) throw new Error("fixture missing");
     const cases = golden.cases.map((item, index) => index !== 0 ? item : kind === "score"
-      ? { ...item, currentScore: item.currentScore === 100 ? 99 : item.currentScore + 1 }
+      ? { ...item, currentScore: item.currentScore === 100 ? 99 : (item.currentScore ?? 0) + 1 }
       : kind === "input" ? { ...item, scoringInput: { ...item.scoringInput, collectorVersion: "collector-v2" } }
       : kind === "output" ? { ...item, scoringOutputDigest: DIGEST_A }
       : item);
-    const bindings = kind === "version" ? { ...golden.bindings, rulesVersion: "rules-v2" } : golden.bindings;
+    const bindings = kind === "version" ? { ...golden.bindings, rulesVersion: "rules-v999" } : golden.bindings;
     const tampered = parseGoldenCaseSet({ ...golden, bindings, cases });
     expect(evaluateReleaseGate(normalizer, tampered, releaseEvidence, runtime).status).toBe("pre_beta_not_ready");
   });

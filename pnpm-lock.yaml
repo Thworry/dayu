@@ -111,6 +111,9 @@ importers:
       vite:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@24.13.3)(lightningcss@1.33.0)
+      zod:
+        specifier: ^4.1.5
+        version: 4.4.3
     devDependencies:
       '@testing-library/jest-dom':
         specifier: latest

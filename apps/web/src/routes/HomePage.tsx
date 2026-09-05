@@ -22,6 +22,29 @@ export interface HomePageProps {
 
 const defaultScanApi = createScanApi();
 
+const discoveryCopy = {
+  en: {
+    sample: "Explore a sample report",
+    sampleNote: "A saved DAYU self-check. No sign-in needed.",
+    process: "From repository to evidence",
+    steps: [
+      { title: "Name a public repo", body: "Start with a GitHub URL. The basic report works without Copilot." },
+      { title: "Read the signals", body: "Compare five dimensions, with missing data and limits in view." },
+      { title: "Follow the evidence", body: "Open the sources behind each finding and make your own call." },
+    ],
+  },
+  zh: {
+    sample: "先看看样例报告",
+    sampleNote: "DAYU 的一次公开自检，无需登录。",
+    process: "从一个仓库，到一份有据可查的报告",
+    steps: [
+      { title: "贴一个公开仓库", body: "输入 GitHub 地址即可开始。基础报告无需 Copilot。" },
+      { title: "看看信号是否一致", body: "五个维度放在一起看，缺了什么数据、有哪些局限，一并说明。" },
+      { title: "顺着证据自己判断", body: "每条发现都能追溯来源，值得深挖的地方，由你做判断。" },
+    ],
+  },
+} as const;
+
 const errorKeys: Record<PublicErrorCode, MessageKey> = {
   github_rate_limited: "error.github_rate_limited",
   insufficient_evidence: "error.insufficient_evidence",
@@ -115,12 +138,13 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
   }
 
   const errorId = state.kind === "error" ? "scan-error" : undefined;
+  const discovery = discoveryCopy[locale];
   return (
     <SiteShell locale={locale}>
       <main className="home-main" id="main-content" tabIndex={-1}>
         <section className="hero-copy">
           <p className="eyebrow"><span aria-hidden="true" />{t(locale, "home.eyebrow")}</p>
-          <h1>{t(locale, "home.title")}</h1>
+          <h1 className={locale === "zh" ? "hero-title-zh" : "hero-title-en"}>{locale === "zh" ? <><span>给 GitHub 项目</span><span>测测含水量</span></> : t(locale, "home.title")}</h1>
           <p className="hero-body">{t(locale, "home.body")}</p>
           <RepositoryForm
             {...(errorId === undefined ? {} : { errorId })}
@@ -130,6 +154,10 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
             repository={repository}
             submitting={submitting}
           />
+          <div className="sample-entry">
+            <a href={`/${locale}/sample`}>{discovery.sample}<span aria-hidden="true">↗</span></a>
+            <p>{discovery.sampleNote}</p>
+          </div>
           {state.kind === "error" ? (
             <div className="error-summary" id="scan-error" ref={errorRef} role="alert" tabIndex={-1}>
               <strong>{t(locale, "error.summary")}</strong>
@@ -162,6 +190,17 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
             <div><dt>{t(locale, "home.signal.ai")}</dt><dd>{t(locale, "home.signal.aiNote")}</dd></div>
           </dl>
         </aside>
+        <section aria-labelledby="home-process-heading" className="home-process">
+          <h2 id="home-process-heading">{discovery.process}</h2>
+          <ol>
+            {discovery.steps.map((step, index) => (
+              <li key={step.title}>
+                <span aria-hidden="true" className="process-number">0{index + 1}</span>
+                <div><h3>{step.title}</h3><p>{step.body}</p></div>
+              </li>
+            ))}
+          </ol>
+        </section>
       </main>
     </SiteShell>
   );

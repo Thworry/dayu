@@ -126,8 +126,9 @@ export function scoreRules(input: ScoreRulesInput): RulesReport {
     rulesVersion: input.rulesVersion,
     sourceCommit: repository.sourceCommit,
   };
-  if (input.classification.scoreMode === "facts_only") {
-    return { ...base, baseScore: null, confidence: ruleConfidence({ cohort: input.normalizer.confidence, data: 0, taxonomy: input.classification.confidence }), score: null, scoreKind: "facts_only" };
+  const uncertainType = !Number.isFinite(input.classification.confidence) || input.classification.confidence < 0.6;
+  if (input.classification.scoreMode === "facts_only" || uncertainType) {
+    return { ...base, baseScore: null, confidence: ruleConfidence({ cohort: input.normalizer.confidence, data: 0, taxonomy: input.classification.confidence }), missingSignals: uncertainType ? ["taxonomy.low_confidence"] : [], score: null, scoreKind: "facts_only" };
   }
 
   const context: RuleContext = {
@@ -238,6 +239,9 @@ export function scoreEnhanced(input: EnhancedScoreInput): EnhancedReport {
     const risk = verdictRisk(item);
     return risk === null ? [] : [{ item, risk }];
   });
+  // An analysis without evidence-bound judgments adds no measured information.
+  // Preserve the exact base state, including confidence and score provenance.
+  if (adjudicated.length === 0) return { ...rules };
   const parts: ScorePart[] = DIMENSIONS.flatMap((dimension) => {
     const weight = rules.dimensionAvailableWeights[dimension];
     const risk = rules.dimensionScores[dimension];
