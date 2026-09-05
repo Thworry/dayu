@@ -1,4 +1,4 @@
-import { evidenceFor, evidenceQuality, finding, valueRecord, type DimensionRuleResult, type RuleContext } from "../types.js";
+import { countValue, evidenceFor, evidenceQuality, finding, valueRecord, type DimensionRuleResult, type RuleContext } from "../types.js";
 
 function filePaths(context: RuleContext): string[] | null {
   const tree = evidenceFor(context, "repository.tree");
@@ -23,24 +23,30 @@ export function scoreClaims(context: RuleContext): DimensionRuleResult {
   const manifest = files.some((path) => /(?:^|\/)(?:package\.json|pyproject\.toml|cargo\.toml|go\.mod|pom\.xml|composer\.json|gemfile)$/.test(path));
   const delivery = files.some((path) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path));
   const releases = evidenceFor(context, "repository.releases");
-  const releaseCount = valueRecord(releases)?.count;
+  const releaseCount = releases?.status === "complete" ? countValue(releases) : null;
   const checks: { mismatch: boolean; weight: number }[] = [];
+  const missingSignals: string[] = [];
+  const applicableWeight = (claimsInstall ? 0.3 : 0) + (claimsRelease ? 0.2 : 0);
   if (claimsInstall) checks.push({ mismatch: !manifest, weight: 0.3 });
-  if (claimsRelease) checks.push({ mismatch: !delivery && !(typeof releaseCount === "number" && releaseCount > 0), weight: 0.2 });
-  const applicable = checks.reduce((sum, check) => sum + check.weight, 0);
-  if (applicable === 0) {
-    return { coverage: 0, dimension: "claims", findings: [], missingSignals: ["claims.not_applicable"], positiveSignals: [], quality: Math.min(evidenceQuality(tree), ...content.map(evidenceQuality)), risk: null };
+  if (claimsRelease) {
+    if (delivery || releaseCount !== null) checks.push({ mismatch: !delivery && releaseCount === 0, weight: 0.2 });
+    else missingSignals.push("claims.release_evidence");
   }
-  const risk = 100 * checks.reduce((sum, check) => sum + Number(check.mismatch) * check.weight, 0) / applicable;
-  const ids = [tree.id, ...content.map((item) => item.id), ...(releases === undefined ? [] : [releases.id])];
+  const observedWeight = checks.reduce((sum, check) => sum + check.weight, 0);
+  if (observedWeight === 0) {
+    return { coverage: 0, dimension: "claims", findings: [], missingSignals: applicableWeight === 0 ? ["claims.not_applicable"] : missingSignals, positiveSignals: [], quality: Math.min(evidenceQuality(tree), ...content.map(evidenceQuality)), risk: null };
+  }
+  const risk = 100 * checks.reduce((sum, check) => sum + Number(check.mismatch) * check.weight, 0) / observedWeight;
+  const usedRelease = claimsRelease && !delivery && releaseCount !== null && releases !== undefined ? [releases] : [];
+  const ids = [tree.id, ...content.map((item) => item.id), ...usedRelease.map((item) => item.id)];
   const result = finding({ copyKey: risk > 0 ? "finding.claims.public_mismatch" : "finding.claims.no_public_mismatch", dimension: "claims", evidenceIds: ids, limitations: [], positiveEvidenceIds: risk === 0 ? ids : [], risk, ruleId: "claims.files_and_delivery" }, context.rulesVersion);
   return {
-    coverage: 1,
+    coverage: observedWeight / applicableWeight,
     dimension: "claims",
     findings: result !== null && risk > 0 ? [result] : [],
-    missingSignals: [],
+    missingSignals,
     positiveSignals: result !== null && risk === 0 ? [result] : [],
-    quality: Math.min(evidenceQuality(tree), ...content.map(evidenceQuality)),
+    quality: Math.min(evidenceQuality(tree), ...content.map(evidenceQuality), ...usedRelease.map(evidenceQuality)),
     risk,
   };
 }

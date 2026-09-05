@@ -37,6 +37,7 @@ describe("classifyRepository", () => {
     const result = classifyRepository(fixtureInput({ files: ["README.md", "notes.txt"] }));
     expect(result.type).toBe("generic");
     expect(result.confidence).toBeLessThan(0.6);
+    expect(result.scoreMode).toBe("facts_only");
   });
 
   it("only references Evidence IDs that exist in the input", () => {

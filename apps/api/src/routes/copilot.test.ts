@@ -1,5 +1,5 @@
 import type { Evidence, ReportSnapshot } from "@dayu/evidence-schema";
-import { createEvidenceId } from "@dayu/evidence-schema";
+import { createEvidenceId, reportSnapshotSchema } from "@dayu/evidence-schema";
 import type { AiFinding } from "@dayu/copilot-adapter";
 import type { RulesReport } from "@dayu/scoring-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -150,6 +150,46 @@ function request(app: Awaited<ReturnType<typeof fixture>>["app"], jobId: string,
 }
 
 describe("user-owned Copilot enhancement route", () => {
+  it.each(["not_applicable", "unverifiable"] as const)("retains rules and confidence when all six rubrics are %s", async (verdict) => {
+    const findings = ([
+      ["substance.artifact", "substance"], ["maintenance.status", "maintenance"], ["community.claim", "community"],
+      ["claims.install", "claims"], ["claims.badge", "claims"], ["claims.roadmap", "claims"],
+    ] as const).map(([rubricId, dimension]) => ({ ...finding(), dimension, rubricId, verdict, risk: null }));
+    const { app, jobId } = await fixture({ analyze: () => Promise.resolve({ findings, model: "fixture-model" }) });
+    const response = await request(app, jobId);
+    const result = response.json<{ baseReport: ReportSnapshot; enhancedReport: null; noChangeReason: string }>();
+    expect(response.statusCode).toBe(200);
+    expect(result).toMatchObject({ enhancedReport: null, noChangeReason: "no_scorable_judgments" });
+    expect(result.baseReport).toEqual(report());
+    expect(result.baseReport.copilot).toBeUndefined();
+    expect(reportSnapshotSchema.safeParse(result.baseReport).success).toBe(true);
+  });
+
+  it("does not inflate confidence by padding an applicable judgment with N/A rubrics", async () => {
+    const applicable = finding();
+    const skipped: AiFinding[] = ([
+      ["substance.artifact", "substance"], ["maintenance.status", "maintenance"], ["community.claim", "community"],
+      ["claims.badge", "claims"], ["claims.roadmap", "claims"],
+    ] as const).map(([rubricId, dimension]) => ({ ...finding(), dimension, rubricId, verdict: "not_applicable", risk: null }));
+    const only = await fixture({ analyze: () => Promise.resolve({ findings: [applicable], model: "fixture-model" }) });
+    const padded = await fixture({ analyze: () => Promise.resolve({ findings: [applicable, ...skipped], model: "fixture-model" }) });
+    const initial = (await request(only.app, only.jobId)).json<{ enhancedReport: ReportSnapshot }>();
+    const withSkipped = (await request(padded.app, padded.jobId)).json<{ enhancedReport: ReportSnapshot }>();
+    expect(withSkipped.enhancedReport.confidence).toBe(initial.enhancedReport.confidence);
+    expect(withSkipped.enhancedReport.score).toBe(initial.enhancedReport.score);
+  });
+
+  it("lowers confidence when evidence scopes are restricted instead of excluding them from the denominator", async () => {
+    const { app, jobId, store } = await fixture();
+    const unavailable: Evidence = { ...evidence, id: createEvidenceId({ commitSha: SHA, kind: "metadata", path: "/releases", repoId: 1 }), status: "restricted", source: { kind: "api", endpoint: "/releases", queryHash: "fixture" } };
+    const baseline = report();
+    const baselineRequest = await fixture();
+    const initial = (await request(baselineRequest.app, baselineRequest.jobId)).json<{ enhancedReport: ReportSnapshot }>();
+    await store.update(jobId, { report: { ...baseline, evidence: [...baseline.evidence, unavailable], evidenceIndex: { ...baseline.evidenceIndex, [unavailable.id]: unavailable } } });
+    const restricted = (await request(app, jobId)).json<{ enhancedReport: ReportSnapshot }>();
+    expect(restricted.enhancedReport.confidence).toBeLessThan(initial.enhancedReport.confidence);
+  });
+
   it("uses the vaulted user token and returns before/after scores with actual model and versions", async () => {
     const analyze = vi.fn<EnhancementAnalyzer>((input) => {
       expect(input.githubToken).toBe("github-user-token-secret");

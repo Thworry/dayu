@@ -100,7 +100,7 @@ export interface EnhancedScoreInput {
 }
 
 export interface EnhancedReport extends ReportSnapshot {
-  scoreKind: "enhanced" | "insufficient_evidence" | "facts_only";
+  scoreKind: "rules_only" | "enhanced" | "insufficient_evidence" | "facts_only";
   availableWeight: number;
   dimensionAvailableWeights: Record<Dimension, number>;
   normalizerVersion: string;

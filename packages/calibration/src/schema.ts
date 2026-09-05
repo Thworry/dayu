@@ -89,7 +89,7 @@ export const goldenCaseSetSchema = z.object({
   bindings: bindingsSchema,
   cases: z.array(z.object({
     challengeTags: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]{1,47}$/)).min(1).max(12),
-    currentScore: z.number().min(0).max(100),
+    currentScore: z.number().min(0).max(100).nullable(),
     expected: z.enum(["ordinary", "risk"]),
     id: z.string().regex(/^case_[a-z0-9_-]+$/),
     previousScore: z.number().min(0).max(100).nullable(),
@@ -98,7 +98,15 @@ export const goldenCaseSetSchema = z.object({
     scoringInput: scoringInputSchema,
     scoringInputDigest: digestSchema,
     scoringOutputDigest: digestSchema,
-  }).strict()).refine((cases) => new Set(cases.map((item) => item.id)).size === cases.length, "case IDs must be unique"),
+    scoreKind: z.enum(["rules_only", "facts_only", "insufficient_evidence"]).optional(),
+  }).strict().superRefine((item, context) => {
+    if (item.currentScore === null && item.scoreKind !== "facts_only" && item.scoreKind !== "insufficient_evidence") {
+      context.addIssue({ code: "custom", message: "Unscored golden cases require an explicit abstention kind", path: ["scoreKind"] });
+    }
+    if (item.currentScore !== null && item.scoreKind !== undefined && item.scoreKind !== "rules_only") {
+      context.addIssue({ code: "custom", message: "Scored golden cases must be rules-only", path: ["scoreKind"] });
+    }
+  })).refine((cases) => new Set(cases.map((item) => item.id)).size === cases.length, "case IDs must be unique"),
   dataClassification: z.enum(["synthetic_sample", "blind_reviewed_public"]),
   generatedAt: z.iso.datetime(),
   immutable: z.literal(true),

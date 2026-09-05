@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { SCORING_RULES_VERSION } from "@dayu/scoring-core";
 
 export interface SafeLogRecord {
   collectorVersion: "collector-v1";
@@ -6,7 +7,7 @@ export interface SafeLogRecord {
   errorCode?: string;
   requestId: string;
   route: string;
-  rulesVersion: "rules-v1";
+  rulesVersion: typeof SCORING_RULES_VERSION;
   sdkVersion: string;
   status: number;
 }
@@ -61,7 +62,7 @@ export function registerRedactedLogger(app: FastifyInstance, sink: SafeLogSink):
       ...(errorCode === undefined ? {} : { errorCode }),
       requestId: request.id,
       route: request.routeOptions.url ?? "unmatched",
-      rulesVersion: "rules-v1",
+      rulesVersion: SCORING_RULES_VERSION,
       sdkVersion: "copilot-sdk-1.0.11",
       status: reply.statusCode,
     }));
