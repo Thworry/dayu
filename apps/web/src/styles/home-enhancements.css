@@ -5,7 +5,8 @@
 .hero-title-zh { font-size: clamp(40px, 4.2vw, 64px); letter-spacing: -.045em; line-height: 1.22; }
 .hero-title-zh span { display: block; }
 .hero-title-en { font-size: clamp(46px, 5.6vw, 78px); line-height: 1.02; }
-.home-main .hero-body { margin-block: 24px 32px; }
+.home-main .hero-body { font-size: clamp(16px, 1.6vw, 20px); line-height: 1.75; margin-block: 24px 32px; }
+.instrument-caption { color: var(--ink-muted); font-size: 12px; line-height: 1.6; margin: 12px 0; }
 .sample-entry { margin-top: 26px; }
 .sample-entry > a { align-items: center; color: var(--river-text); display: inline-flex; font-size: 15px; font-weight: 750; gap: 14px; min-height: 44px; text-decoration-thickness: 1px; text-underline-offset: 5px; }
 .sample-entry > a span { font-family: var(--mono); font-size: 20px; transition: transform 160ms ease; }

@@ -26,20 +26,22 @@ const discoveryCopy = {
   en: {
     sample: "Explore a sample report",
     sampleNote: "A saved DAYU self-check. No sign-in needed.",
-    process: "From repository to evidence",
+    process: "Start here",
+    illustration: "Waterline illustration, not a scan result.",
     steps: [
       { title: "Name a public repo", body: "Start with a GitHub URL. The basic report works without Copilot." },
-      { title: "Read the signals", body: "Compare five dimensions, with missing data and limits in view." },
+      { title: "Read the main findings", body: "Start with the short summary. Open the detailed analysis when you want to investigate." },
       { title: "Follow the evidence", body: "Open the sources behind each finding and make your own call." },
     ],
   },
   zh: {
     sample: "先看看样例报告",
     sampleNote: "DAYU 的一次公开自检，无需登录。",
-    process: "从一个仓库，到一份有据可查的报告",
+    process: "从这里开始",
+    illustration: "水位示意图，并非分析结果。",
     steps: [
       { title: "贴一个公开仓库", body: "输入 GitHub 地址即可开始。基础报告无需 Copilot。" },
-      { title: "看看信号是否一致", body: "五个维度放在一起看，缺了什么数据、有哪些局限，一并说明。" },
+      { title: "先读主要发现", body: "先看简短发现，再决定是否展开五维分析和完整证据。" },
       { title: "顺着证据自己判断", body: "每条发现都能追溯来源，值得深挖的地方，由你做判断。" },
     ],
   },
@@ -184,6 +186,7 @@ export function HomePage({ api = defaultScanApi, locale, onReportRoute }: HomePa
             <span className="gauge-label middle">{t(locale, "home.gaugeMiddle")}</span>
             <span className="gauge-label bottom">{t(locale, "home.gaugeBottom")}</span>
           </div>
+          <p className="instrument-caption">{discovery.illustration}</p>
           <dl className="signal-list">
             <div><dt>{t(locale, "home.signal.public")}</dt><dd>{t(locale, "home.signal.publicNote")}</dd></div>
             <div><dt>{t(locale, "home.signal.evidence")}</dt><dd>{t(locale, "home.signal.evidenceNote")}</dd></div>
