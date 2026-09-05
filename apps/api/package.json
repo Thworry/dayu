@@ -11,14 +11,14 @@
   },
   "dependencies": {
     "@dayu/copilot-adapter": "workspace:*",
-    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/rate-limit": "^11.2.0",
     "@fastify/cookie": "^11.0.2",
     "@dayu/evidence-schema": "workspace:*",
     "@dayu/github-collector": "workspace:*",
     "@dayu/repository-taxonomy": "workspace:*",
     "@dayu/scoring-core": "workspace:*",
     "fastify": "^5.5.0",
-    "zod": "^4.1.5"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
