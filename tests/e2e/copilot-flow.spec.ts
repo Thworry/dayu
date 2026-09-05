@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openBaseReport } from "./fixtures/mock-dayu.js";
 import { bootstrapSession, scanToReport } from "./fixtures/real-dayu.js";
+import { openReportDetail } from "./fixtures/report-details.js";
 
 async function consent(page: Page): Promise<void> {
   await page.getByLabel(/I agree to send this public evidence/iu).check();
@@ -25,6 +26,9 @@ test("a completed no-change review survives language switching without a second 
   await scanToReport(page, "owner/no-change");
   await consent(page);
   await expect(page.getByRole("heading", { name: "Review complete · score unchanged" })).toBeVisible();
+  await openReportDetail(page, "analysis");
+  await page.locator("#report-analysis > summary").click();
+  await expect(page.locator("#report-analysis")).toHaveJSProperty("open", false);
   await page.locator(".locale-switch").click();
   await expect(page.getByRole("heading", { name: "复核完成 · 分数未变" })).toBeVisible();
   await expect(page.getByText("[无法验证] 公开证据不足以核实这项说法。")).toBeVisible();
@@ -44,6 +48,7 @@ for (const scenario of [
     await consent(page);
     await expect(page.getByRole("alert")).toContainText("The rules report is preserved");
     await expect(page.getByText("Rules-only Signal")).toBeVisible();
+    await openReportDetail(page, "evidence");
     await expect(page.getByRole("heading", { name: "Verifiable evidence" })).toBeVisible();
   });
 }

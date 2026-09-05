@@ -3,6 +3,7 @@ import { useEffect, useState, type PropsWithChildren } from "react";
 import { Link, useInRouterContext } from "react-router-dom";
 
 import { isStaticPreview } from "../app/build-mode.js";
+import { previewPath } from "../app/preview-navigation.js";
 import { oppositeLocale } from "../i18n/locale.js";
 
 export interface SiteShellProps extends PropsWithChildren {
@@ -24,8 +25,8 @@ export function SiteShell({ children, locale, navigationState, repositoryPath = 
     return () => { window.removeEventListener("hashchange", updateEvidenceHash); };
   }, []);
   const alternate = oppositeLocale(locale);
-  const alternatePath = isStaticPreview ? `?lang=${alternate}${evidenceHash}` : repositoryPath === "" ? `/${alternate}` : `/${alternate}${repositoryPath}`;
-  const homePath = isStaticPreview ? `?lang=${locale}` : `/${locale}`;
+  const alternatePath = isStaticPreview ? previewPath(alternate, repositoryPath === "/sample" ? "sample" : "home", evidenceHash) : repositoryPath === "" ? `/${alternate}` : `/${alternate}${repositoryPath}`;
+  const homePath = isStaticPreview ? previewPath(locale, "home") : `/${locale}`;
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main-content">{locale === "zh" ? "跳到主要内容" : "Skip to main content"}</a>
@@ -37,11 +38,7 @@ export function SiteShell({ children, locale, navigationState, repositoryPath = 
           <span className="brand-subtitle">{t(locale, "common.subtitle")}</span>
         </a>
         <nav aria-label={locale === "zh" ? "主导航" : "Main navigation"} className="site-navigation">
-          {isStaticPreview ? (
-            <a className="sample-navigation" href="https://github.com/Thworry/dayu">GitHub<span aria-hidden="true">↗</span></a>
-          ) : (
-            <a aria-current={repositoryPath === "/sample" ? "page" : undefined} className="sample-navigation" href={`/${locale}/sample`}>{locale === "zh" ? "样例报告" : "Sample report"}</a>
-          )}
+          <a aria-current={repositoryPath === "/sample" ? "page" : undefined} className="sample-navigation" href={isStaticPreview ? previewPath(locale, "sample") : `/${locale}/sample`}>{locale === "zh" ? "样例报告" : "Sample report"}</a>
           {navigationState === undefined || !inRouter ? <a className="locale-switch" href={alternatePath} hrefLang={alternate}>
             <span aria-hidden="true">{locale.toUpperCase()}</span>
             <span className="locale-arrow" aria-hidden="true" />

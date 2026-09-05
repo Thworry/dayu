@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { evidenceCopy, evidenceCountLabel, evidenceKindLabel, evidenceStatusLabel, evidenceTitle, isLimitedEvidence, observationLabel, sourcePath } from "./evidence-presentation.js";
 import "../styles/evidence-explorer.css";
+import { revealReportTarget } from "./report-disclosure.js";
 
 function encodedPath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
@@ -89,6 +90,7 @@ export function EvidencePanel({ locale, report }: { locale: Locale; report: Repo
     }
     const onHashChange = (): void => { revealHash(window.location.hash); };
     const onClick = (event: MouseEvent): void => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       // A repeated click on the current hash does not trigger hashchange.
       const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
       const href = anchor?.getAttribute("href");
@@ -106,8 +108,7 @@ export function EvidencePanel({ locale, report }: { locale: Locale; report: Repo
     if (row === null) return;
     const details = row.querySelector("details");
     if (details !== null) details.open = true;
-    row.focus({ preventScroll: true });
-    if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "start", behavior: "instant" });
+    revealReportTarget(row);
     setPendingTarget(null);
   }, [pendingTarget, query, filter]);
 

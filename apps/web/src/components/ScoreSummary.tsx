@@ -1,5 +1,6 @@
 import type { ReportSnapshot } from "@dayu/evidence-schema";
 import { t, type Locale, type MessageKey } from "@dayu/report-i18n";
+import { readingCopy } from "./report-reading-copy.js";
 
 const typeKeys: Readonly<Record<string, MessageKey>> = {
   creative_demo: "report.type.creative_demo",
@@ -31,33 +32,39 @@ export function ScoreSummary({ description, locale, report }: { description: str
       <div className="summary-mode"><span aria-hidden="true" />{t(locale, modeKey)}</div>
       <div className="research-preview" role="note">
         <strong>{t(locale, "report.preview.label")}</strong>
-        <span>{t(locale, "report.preview.body", { version: report.researchPreview.normalizerVersion })}</span>
+        <span>{readingCopy(locale, "preview")}</span>
       </div>
       <h1 id="report-title">{report.repository.fullName}</h1>
       <p className="repository-description">{description ?? t(locale, "report.noDescription")}</p>
-      <div className={`score-instrument${unscored ? " is-unscored" : ""}`}>
-        {unscored ? null : <meter aria-hidden="true" className="score-waterline" max={100} min={0} value={score} />}
-        <span className="score-label">{t(locale, "report.score")}</span>
+      <p className="reading-capture">{t(locale, "report.scannedAt")}: <time dateTime={report.createdAt}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(report.createdAt))}</time></p>
+      <div className="reading-score-status">
         {unscored ? (
-          <div className="insufficient-score">
+          <div>
             <strong>{t(locale, report.scoreKind === "facts_only" ? "report.factsOnly" : "report.insufficient")}</strong>
             <p>{t(locale, report.scoreKind === "facts_only" ? "report.factsOnlyBody" : "report.insufficientBody")}</p>
           </div>
         ) : (
-          <div className="precise-score" data-testid="precise-score">
-            <strong>{score}</strong><span>/100</span>
-            <p>{t(locale, levelKey(score))}</p>
-          </div>
+          <p><span>{t(locale, "report.score")}</span> <strong>{score} / 100</strong> <span>{t(locale, levelKey(score))}</span></p>
         )}
       </div>
-      <dl className="summary-facts">
-        <div><dt>{t(locale, "report.confidence")}</dt><dd>{report.confidence}%</dd></div>
-        <div><dt>{t(locale, "report.repositoryType")}</dt><dd>{repositoryType(locale, report.repositoryType)}</dd></div>
-        <div><dt>{t(locale, "report.defaultBranch")}</dt><dd><code>{report.repository.defaultBranch}</code></dd></div>
-        <div><dt>{t(locale, "report.sourceCommit")}</dt><dd><code>{report.sourceCommit.slice(0, 12)}</code></dd></div>
-        <div><dt>{t(locale, "report.scannedAt")}</dt><dd><time dateTime={report.createdAt}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(report.createdAt))}</time></dd></div>
-      </dl>
-      <p className="confidence-context">{t(locale, "report.confidenceContext")}</p>
+      <div className="reading-confidence"><p><strong>{t(locale, "report.confidence")}: {report.confidence}%</strong></p><p className="confidence-context">{t(locale, "report.confidenceContext")}</p></div>
+      <details className="report-disclosure report-technical" id="report-details">
+        <summary>{readingCopy(locale, "technical")}</summary>
+        <div className="report-disclosure-body">
+          <p className="reading-normalizer">{t(locale, "report.preview.body", { version: report.researchPreview.normalizerVersion })}</p>
+          {unscored ? null : <div className="score-instrument">
+            <meter aria-hidden="true" className="score-waterline" max={100} min={0} value={score} />
+            <span className="score-label">{t(locale, "report.score")}</span>
+            <div className="precise-score" data-testid="precise-score"><strong>{score}</strong><span>/100</span><p>{t(locale, levelKey(score))}</p></div>
+          </div>}
+          <dl className="summary-facts">
+            <div><dt>{t(locale, "report.repositoryType")}</dt><dd>{repositoryType(locale, report.repositoryType)}</dd></div>
+            <div><dt>{t(locale, "report.defaultBranch")}</dt><dd><code>{report.repository.defaultBranch}</code></dd></div>
+            <div><dt>{t(locale, "report.sourceCommit")}</dt><dd><code>{report.sourceCommit.slice(0, 12)}</code></dd></div>
+            <div><dt>{t(locale, "report.scannedAt")}</dt><dd><time dateTime={report.createdAt}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(report.createdAt))}</time></dd></div>
+          </dl>
+        </div>
+      </details>
     </section>
   );
 }

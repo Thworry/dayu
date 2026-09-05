@@ -23,10 +23,11 @@
 .sample-notice-label { color: var(--river-text); font-family: var(--mono); font-size: 11px; font-weight: 750; letter-spacing: .04em; margin: 0 0 10px; text-transform: uppercase; }
 .sample-notice > div > p:not(.sample-notice-label) { font-size: 14px; line-height: 1.7; margin: 0; max-width: 66ch; }
 .sample-notice > div > p.sample-capture { color: var(--ink-muted); font-size: 12px; margin-top: 10px; }
-.sample-local-guide { border-left: 1px solid var(--line); padding-left: 28px; }
+.sample-local-guide { align-items: center; border-left: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 0 18px; padding-left: 28px; }
 .sample-local-guide > code { display: block; font-family: var(--mono); font-size: 18px; font-weight: 650; margin-top: 8px; }
 .sample-local-guide > a { align-items: center; color: var(--river-text); display: inline-flex; font-size: 12px; font-weight: 650; gap: 10px; min-height: 44px; text-underline-offset: 4px; }
-.sample-local-guide > small { color: var(--ink-muted); display: block; font-size: 11px; line-height: 1.6; }
+.sample-local-guide > .sample-start { background: var(--action-bg); color: var(--action-fg); padding: 0 14px; text-decoration: none; }
+.sample-local-guide > small { color: var(--ink-muted); flex-basis: 100%; font-size: 11px; line-height: 1.6; }
 @media (max-width: 850px) {
   .home-process { margin-top: 48px; }
   .home-process ol { gap: 24px; }

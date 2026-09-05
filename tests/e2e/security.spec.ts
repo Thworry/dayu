@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { scanToReport } from "./fixtures/real-dayu.js";
+import { openReportDetail } from "./fixtures/report-details.js";
 
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 
@@ -50,6 +51,7 @@ test("production app and fallback routes emit the complete browser security poli
 test("evidence source links are fixed HTTPS GitHub destinations with opener isolation", async ({ page }) => {
   await scanToReport(page, "owner/reality-check");
   await expect(page.locator("[style]")).toHaveCount(0);
+  await openReportDetail(page, "evidence");
   const source = page.getByRole("link", { name: "Open public GitHub API endpoint" }).first();
   await expect(source).toHaveAttribute("href", "https://api.github.com/repos/owner/reality-check");
   await expect(source).toHaveAttribute("rel", "noreferrer");

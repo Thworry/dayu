@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const buildMode = vi.hoisted(() => ({ isStaticPreview: false }));
@@ -22,12 +22,23 @@ describe("SiteShell navigation", () => {
 
   it("keeps static navigation on Pages and preserves the evidence anchor", () => {
     buildMode.isStaticPreview = true;
-    window.history.replaceState(null, "", "/dayu/?lang=en#ev_aaaaaaaaaaaaaaaaaaaaaaaa");
+    window.history.replaceState(null, "", "/dayu/?lang=en&view=sample#evidence-ev_aaaaaaaaaaaaaaaaaaaaaaaa");
     render(<SiteShell locale="en" repositoryPath="/sample"><main>Sample</main></SiteShell>);
 
     expect(document.querySelector(".brand")).toHaveAttribute("href", "?lang=en");
-    expect(document.querySelector(".locale-switch")).toHaveAttribute("href", "?lang=zh#ev_aaaaaaaaaaaaaaaaaaaaaaaa");
-    expect(screen.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/Thworry/dayu");
-    expect(screen.queryByRole("link", { name: "Sample report" })).not.toBeInTheDocument();
+    expect(document.querySelector(".locale-switch")).toHaveAttribute("href", "?lang=zh&view=sample#evidence-ev_aaaaaaaaaaaaaaaaaaaaaaaa");
+    expect(screen.getByRole("link", { name: "Sample report" })).toHaveAttribute("href", "?lang=en&view=sample");
+  });
+
+  it("preserves the current welcome or sample view when the hash changes", () => {
+    buildMode.isStaticPreview = true;
+    window.history.replaceState(null, "", "/dayu/?lang=zh");
+    render(<SiteShell locale="zh"><main>Welcome</main></SiteShell>);
+    expect(document.querySelector(".locale-switch")).toHaveAttribute("href", "?lang=en");
+    act(() => {
+      window.history.replaceState(null, "", "/dayu/?lang=zh#local-guide");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(document.querySelector(".locale-switch")).toHaveAttribute("href", "?lang=en#local-guide");
   });
 });

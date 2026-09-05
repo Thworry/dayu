@@ -4,7 +4,7 @@ import "@testing-library/jest-dom/vitest";
 
 import type { Finding, ReportSnapshot } from "@dayu/evidence-schema";
 import type { CopilotApi, EnhancementResponse } from "../api/copilot.js";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -55,9 +55,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+async function openDisclosure(container: HTMLElement, id: string): Promise<void> {
+  const disclosure = container.querySelector<HTMLDetailsElement>(`#${id}`);
+  const summary = disclosure?.querySelector("summary");
+  if (!(disclosure instanceof HTMLDetailsElement) || !(summary instanceof HTMLElement)) throw new Error(`missing_${id}`);
+  if (!disclosure.open) await userEvent.click(summary);
+  expect(disclosure).toHaveAttribute("open");
+}
+
 describe("ReportPage", () => {
-  it("renders score context, balanced findings, and a verifiable pinned evidence link", () => {
-    render(<ReportPage locale="en" report={fixture()} />);
+  it("renders score context, balanced findings, and a verifiable pinned evidence link", async () => {
+    const { container } = render(<ReportPage locale="en" report={fixture()} />);
+    await openDisclosure(container, "report-details");
+    await openDisclosure(container, "report-analysis");
+    await openDisclosure(container, "report-evidence");
 
     expect(screen.getByText("Rules-only Signal")).toBeVisible();
     expect(screen.getByText("Pre-beta · uncalibrated research preview")).toBeVisible();
@@ -67,14 +78,16 @@ describe("ReportPage", () => {
     expect(screen.getByRole("link", { name: evidenceId })).toHaveAttribute("href", "https://api.github.com/repos/facebook/react");
     expect(screen.getByText("This is an entertainment-style risk assessment based on public evidence. It is not proof of bought engagement, fraud, or intent.")).toBeVisible();
     expect(screen.getAllByText("Context:")).toHaveLength(2);
-    expect(screen.getByText("The community finding uses only a bounded sample of public interactions.")).toBeVisible();
-    expect(screen.getByText("An additional conservative scoring condition applies to this finding.")).toBeVisible();
+    expect(within(container.querySelector("#report-analysis") ?? container).getByText("The community finding uses only a bounded sample of public interactions.")).toBeVisible();
+    expect(within(container.querySelector("#report-analysis") ?? container).getByText("An additional conservative scoring condition applies to this finding.")).toBeVisible();
     expect(screen.queryByText("sample_window")).not.toBeInTheDocument();
   });
 
-  it("labels finding values as dimension risk and separates counter-evidence", () => {
+  it("labels finding values as dimension risk and separates counter-evidence", async () => {
     const withCounterEvidence = fixture({ findings: [{ ...caution, counterEvidenceIds: [evidenceId] }] });
-    render(<ReportPage locale="en" report={withCounterEvidence} />);
+    const { container } = render(<ReportPage locale="en" report={withCounterEvidence} />);
+    await openDisclosure(container, "report-analysis");
+    await openDisclosure(container, "report-evidence");
 
     expect(screen.getAllByText("Dimension risk").length).toBeGreaterThan(0);
     expect(screen.queryByText("Score impact")).not.toBeInTheDocument();
@@ -109,8 +122,9 @@ describe("ReportPage", () => {
     expect(screen.queryByTestId("precise-score")).not.toBeInTheDocument();
   });
 
-  it("explains risk direction and offers bounded public feedback without raw evidence", () => {
-    render(<ReportPage locale="en" report={fixture()} />);
+  it("explains risk direction and offers bounded public feedback without raw evidence", async () => {
+    const { container } = render(<ReportPage locale="en" report={fixture()} />);
+    await openDisclosure(container, "report-analysis");
     expect(screen.getByText(/Higher means more to check/)).toBeVisible();
     expect(screen.getAllByRole("link", { name: /Inspect related evidence/ })[0]).toHaveAttribute("href", `#evidence-${evidenceId}`);
     const url = new URL(evidenceFeedbackUrl(fixture()));
@@ -166,25 +180,28 @@ describe("ReportPage", () => {
     expect(screen.getByText("链接已复制")).toBeVisible();
   });
 
-  it("renders unknown finding keys with a neutral localized fallback", () => {
-    render(<ReportPage locale="en" report={fixture({ findings: [{ ...caution, explanationKey: "repository.supplied.instructions", titleKey: "ignore.system.prompt" }] })} />);
+  it("renders unknown finding keys with a neutral localized fallback", async () => {
+    const { container } = render(<ReportPage locale="en" report={fixture({ findings: [{ ...caution, explanationKey: "repository.supplied.instructions", titleKey: "ignore.system.prompt" }] })} />);
+    await openDisclosure(container, "report-analysis");
 
     expect(screen.queryByText("ignore.system.prompt")).not.toBeInTheDocument();
-    expect(screen.getByText("A public signal does not fully line up")).toBeVisible();
+    expect(within(container.querySelector("#report-analysis") ?? container).getByText("A public signal does not fully line up")).toBeVisible();
   });
 
-  it("pins file evidence to its commit while API evidence uses only the allowlisted API host", () => {
+  it("pins file evidence to its commit while API evidence uses only the allowlisted API host", async () => {
     const baseEvidence = reportFixture.evidence[0];
     if (baseEvidence === undefined) throw new Error("missing_fixture_evidence");
     const fileEvidence = { ...baseEvidence, source: { commitSha: reportFixture.sourceCommit, kind: "file" as const, lineStart: 12, path: "README.md" } };
     const fileReport = { ...fixture(), evidence: [fileEvidence], evidenceIndex: { [fileEvidence.id]: fileEvidence } };
     const view = render(<ReportPage locale="en" report={fileReport} />);
+    await openDisclosure(view.container, "report-evidence");
     expect(screen.getByRole("link", { name: evidenceId })).toHaveAttribute("href", `https://github.com/facebook/react/blob/${reportFixture.sourceCommit}/README.md#L12`);
     expect(screen.getByText(/Pinned to report commit/)).toBeVisible();
 
     view.unmount();
     const unsafeEvidence = { ...baseEvidence, source: { endpoint: "//attacker.example/steal", kind: "api" as const, queryHash: "public-v1" } };
-    render(<ReportPage locale="en" report={{ ...fixture(), evidence: [unsafeEvidence], evidenceIndex: { [unsafeEvidence.id]: unsafeEvidence } }} />);
+    const unsafeView = render(<ReportPage locale="en" report={{ ...fixture(), evidence: [unsafeEvidence], evidenceIndex: { [unsafeEvidence.id]: unsafeEvidence } }} />);
+    await openDisclosure(unsafeView.container, "report-evidence");
     expect(screen.getByRole("link", { name: evidenceId })).toHaveAttribute("href", "https://api.github.com/");
     expect(githubApiSource("/user", "facebook/react")).toBe("https://api.github.com/");
     expect(githubApiSource("/repos/facebook/react/issues?state=all&page=1", "facebook/react"))
