@@ -23,6 +23,8 @@ The bundled self-check was collected through the local API on 2026-09-05 at 07:3
 
 ## Verification
 
+Local acceptance: 430 unit/integration tests across packages and 29 Playwright E2E tests passed. [PR #5](https://github.com/Thworry/dayu/pull/5) tracks required CI, merge, and Pages deployment acceptance; the live preview remains a historical self-check, regardless of deployment status.
+
 - Unit and integration coverage includes scoring abstentions, missing releases, unchanged review state, hostile repository text, evidence search/anchors, raw JSON exports, subscriber counts, and English share-card line wrapping.
 - Real browser E2E covers anonymous scans, consent, distinct-user isolation, provider failures, language switching without repeat Copilot calls, 320/768/1440 layouts, dark/reduced-motion modes, keyboard operation, and serious/critical accessibility gates.
 - Static Pages tests serve emitted files without CSP response headers, verify the embedded policy blocks connections, record zero fetch/XHR requests during ordinary preview use, and validate JSON and PNG downloads.

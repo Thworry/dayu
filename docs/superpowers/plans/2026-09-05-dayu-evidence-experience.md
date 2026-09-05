@@ -43,5 +43,5 @@ Files: `.github/workflows/pages.yml`, README files, `docs/assets`, this plan.
 
 - [x] Build Pages from the same React code; update README and inspected screenshots.
 - [x] Run full repository checks and E2E once integrated; rerun only failures or affected checks after fixes.
-- [ ] Commit using GitHub noreply, push a PR, wait for required checks, merge, sync local main, verify live Pages and clean worktree.
+- [x] Commit using GitHub noreply and push [PR #5](https://github.com/Thworry/dayu/pull/5). Required checks, merge, Pages deployment, and final remote acceptance are recorded in the PR and its linked workflow runs.
 - [x] Record genuine remaining calibration blockers and the review findings resolved in this phase.
