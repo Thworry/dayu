@@ -34,13 +34,26 @@ afterEach(() => {
 });
 
 describe("HomePage", () => {
+  it.each(["zh", "en"] as const)("makes the scan and sample paths explicit in %s", (locale) => {
+    const scanApi = api();
+    render(<HomePage api={scanApi} locale={locale} />);
+    expect(screen.getByRole("button", { name: locale === "zh" ? "开始分析" : "Analyze repository" })).toBeVisible();
+    expect(screen.getByRole("link", { name: locale === "zh" ? "先看看样例报告" : "Explore a sample report" })).toHaveAttribute("href", `/${locale}/sample`);
+    expect(screen.getByText(locale === "zh" ? "Pre-beta · 分析公开 GitHub 仓库" : "Pre-beta · Analyze public GitHub repositories")).toBeVisible();
+    expect(screen.getByRole("heading", { name: locale === "zh" ? "先读主要发现" : "Read the main findings" })).toBeVisible();
+    expect(document.querySelector(".hero-body")?.textContent).not.toContain("Copilot");
+    // Entry discovery must not start a scan or use a sample as live data.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(scanApi.createScan).not.toHaveBeenCalled();
+  });
+
   it("starts a Chinese rules scan without requiring login", async () => {
     const scanApi = api();
     const onReportRoute = vi.fn();
     render(<HomePage api={scanApi} locale="zh" onReportRoute={onReportRoute} />);
 
     await userEvent.type(screen.getByLabelText("GitHub 仓库"), "facebook/react");
-    await userEvent.click(screen.getByRole("button", { name: "开始治水" }));
+    await userEvent.click(screen.getByRole("button", { name: "开始分析" }));
 
     // The API method is a Vitest spy in this contract test.
     // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -58,7 +71,7 @@ describe("HomePage", () => {
 
     const input = screen.getByLabelText("GitHub repository");
     await userEvent.type(input, "not a repository");
-    await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze repository" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
@@ -88,7 +101,7 @@ describe("HomePage", () => {
     render(<HomePage api={scanApi} locale="en" onReportRoute={vi.fn()} />);
 
     await userEvent.type(screen.getByLabelText("GitHub repository"), "facebook/react");
-    await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze repository" }));
 
     expect(await screen.findByText("Identify repository")).toBeVisible();
     expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
@@ -105,7 +118,7 @@ describe("HomePage", () => {
     render(<HomePage api={scanApi} locale="en" />);
 
     await userEvent.type(screen.getByLabelText("GitHub repository"), "facebook/react");
-    await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze repository" }));
 
     expect(await screen.findByText(/Try again after/)).toBeVisible();
     expect(screen.getByText(/2026/)).toBeVisible();
@@ -134,7 +147,7 @@ describe("HomePage", () => {
     });
     render(<HomePage api={scanApi} locale="en" onReportRoute={onReportRoute} />);
     await userEvent.type(screen.getByLabelText("GitHub repository"), "facebook/react");
-    await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze repository" }));
 
     await waitFor(() => {
       expect(onReportRoute).toHaveBeenCalledWith("/en/r/facebook/react", reportFixture, "github_rate_limited", expect.any(String));
@@ -190,7 +203,7 @@ describe("HomePage", () => {
     const onReportRoute = vi.fn();
     const view = render(<HomePage api={{ createScan, getReport: vi.fn(), getScan: vi.fn() }} locale="en" onReportRoute={onReportRoute} />);
     await userEvent.type(screen.getByLabelText("GitHub repository"), "facebook/react");
-    await userEvent.click(screen.getByRole("button", { name: "Run a reality check" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze repository" }));
     view.unmount();
 
     await act(async () => {

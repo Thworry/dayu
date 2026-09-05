@@ -9,11 +9,14 @@ describe("report messages", () => {
     expect(Object.keys(zh).sort()).toEqual(Object.keys(en).sort());
   });
 
-  it("keeps the approved bilingual product copy", () => {
+  it("keeps the playful name while explaining the action before optional AI", () => {
     expect(zh["home.title"]).toBe("给 GitHub 项目测测含水量");
-    expect(zh["home.body"]).toBe("公开数据打底，你自己的 Copilot 深挖。看看热度、代码、维护和宣传到底对不对得上。");
-    expect(en["home.title"]).toBe("See how much hype a GitHub repo is carrying.");
-    expect(en["home.body"]).toBe("Public signals first. Your Copilot goes deeper. Check whether the stars, code, maintenance, and claims actually line up.");
+    expect(zh["home.body"]).toContain("贴一个公开仓库地址");
+    expect(en["home.title"]).toBe("A reality check for GitHub repos.");
+    expect(en["home.body"]).toContain("Paste a public repository URL");
+    expect(zh["home.submit"]).toBe("开始分析");
+    expect(en["home.submit"]).toBe("Analyze repository");
+    expect(zh["home.body"] + en["home.body"]).not.toContain("Copilot");
   });
 
   it("stores the approved risk labels", () => {

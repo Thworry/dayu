@@ -8,6 +8,7 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import sample from "../../apps/web/src/data/dayu-sample.json" with { type: "json" };
+import { openReportDetail } from "./fixtures/report-details.js";
 
 let previewServer: Server | undefined;
 let previewOrigin: string;
@@ -49,6 +50,58 @@ test.afterAll(async () => {
   });
 });
 
+test("Pages starts with an honest welcome screen and a usable sample action", async ({ page }) => {
+  const connections: string[] = [];
+  page.on("request", (request) => {
+    if (["fetch", "xhr", "websocket"].includes(request.resourceType())) connections.push(request.url());
+  });
+  for (const locale of ["zh", "en"] as const) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${previewOrigin}/dayu/?lang=${locale}`);
+    const primary = page.locator(`main a[href="?lang=${locale}&view=sample"]`).first();
+    await expect(primary).toBeVisible();
+    const box = await primary.boundingBox();
+    expect(box).not.toBeNull();
+    expect((box?.y ?? 844) + (box?.height ?? 0)).toBeLessThanOrEqual(844);
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toHaveCount(0);
+    await expect(page.locator(".evidence-explorer")).toHaveCount(0);
+    await expect(page.locator("main")).toContainText(/Pre-beta/iu);
+    const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+    expect(accessibility.violations.filter((item) => item.impact === "serious" || item.impact === "critical")).toEqual([]);
+    await primary.click();
+    await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toBeVisible();
+    expect(await page.locator(".reading-primary").evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+    const start = page.getByRole("link", { name: locale === "zh" ? "开始阅读报告 ↓" : "Start reading the report ↓" });
+    await expect(start).toBeVisible();
+    const startBox = await start.boundingBox();
+    expect(startBox).not.toBeNull();
+    expect((startBox?.y ?? 844) + (startBox?.height ?? 0)).toBeLessThanOrEqual(844);
+    await start.click();
+    await expect(page.getByRole("heading", { name: locale === "zh" ? "先看主要发现" : "Start with the main observations" })).toBeFocused();
+    await page.locator(".brand").click();
+    await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toHaveCount(0);
+    expect(new URL(page.url()).search).toBe(`?lang=${locale}`);
+    expect(new URL(page.url()).hash).toBe("");
+  }
+  expect(connections).toEqual([]);
+});
+
+test("old report anchors still lead to the saved sample instead of the welcome screen", async ({ page }) => {
+  const first = sample.evidence[0];
+  if (first === undefined) throw new Error("Sample must contain evidence");
+  for (const hash of [`#evidence-${first.id}`, "#evidence", "#coverage", "#findings-heading", "#dimensions-heading"]) {
+    await page.goto(`${previewOrigin}/dayu/?lang=zh${hash}`);
+    await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toBeVisible();
+    if (hash.startsWith("#evidence-")) {
+      await expect(page.locator(hash)).toBeVisible();
+      await expect(page.locator(hash)).toBeFocused();
+    }
+  }
+  await page.goto(`${previewOrigin}/dayu/?lang=zh#main-content`);
+  await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toHaveCount(0);
+});
+
 test("both local sample routes are accessible and perform no scan or session requests", async ({ page }) => {
   const apiRequests: string[] = [];
   page.on("request", (request) => {
@@ -58,6 +111,8 @@ test("both local sample routes are accessible and perform no scan or session req
     await page.goto(`/${locale}/sample`);
     await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toBeVisible();
     await expect(page.getByTestId("precise-score")).toHaveCount(0);
+    await expect(page.locator("#report-evidence")).toHaveJSProperty("open", false);
+    await openReportDetail(page, "evidence");
     await page.getByRole("searchbox", { name: locale === "zh" ? "搜索证据" : "Search evidence" }).fill("does-not-exist");
     await expect(page.locator(".evidence-explorer li")).toHaveCount(0);
     await page.getByRole("searchbox").clear();
@@ -75,19 +130,19 @@ test("Pages preview keeps evidence navigation local and blocks network connectio
     if (["fetch", "xhr", "websocket"].includes(request.resourceType())) connections.push(request.url());
   });
   page.on("pageerror", (error) => { scriptErrors.push(error.message); });
-  await page.goto(`${previewOrigin}/dayu/?lang=en`);
+  await page.goto(`${previewOrigin}/dayu/?lang=en&view=sample`);
   await expect(page.getByText("Public self-check · saved snapshot")).toBeVisible();
   const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
   expect(policy).toContain("connect-src 'none'");
   expect(policy).toContain("form-action 'none'");
-  const evidenceLink = page.locator('.findings-section a[href^="#evidence-"]').first();
+  const evidenceLink = page.locator('.report-reading-guide a[href^="#evidence-"]').first();
   const hash = await evidenceLink.getAttribute("href");
   expect(hash).toBeTruthy();
   await evidenceLink.click();
   expect(new URL(page.url()).hash).toBe(hash);
   await page.locator(".locale-switch").click();
   expect(new URL(page.url()).pathname).toBe("/dayu/");
-  expect(new URL(page.url()).search).toBe("?lang=zh");
+  expect(new URL(page.url()).search).toBe("?lang=zh&view=sample");
   expect(new URL(page.url()).hash).toBe(hash);
   await expect(page.getByText("公开自检样例 · 历史快照")).toBeVisible();
   if (hash === null) throw new Error("Missing evidence hash");
@@ -108,7 +163,9 @@ test("Pages preview downloads the exact saved JSON and a valid PNG without an AP
   page.on("request", (request) => {
     if (["fetch", "xhr"].includes(request.resourceType())) connections.push(request.url());
   });
-  await page.goto(`${previewOrigin}/dayu/?lang=en`);
+  await page.goto(`${previewOrigin}/dayu/?lang=en&view=sample`);
+  await expect(page.locator("#report-analysis")).toHaveJSProperty("open", false);
+  await expect(page.locator("#report-evidence")).toHaveJSProperty("open", false);
   const jsonEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download evidence JSON" }).click();
   const json = await jsonEvent;
@@ -125,4 +182,30 @@ test("Pages preview downloads the exact saved JSON and a valid PNG without an AP
   expect(bytes.length).toBeGreaterThan(1_000);
   expect(png.suggestedFilename()).toBe("Thworry-dayu-dayu.png");
   expect(connections).toEqual([]);
+});
+
+test("a source action reveals collapsed evidence after empty filtering and repeated anchor clicks", async ({ page }) => {
+  await page.goto(`${previewOrigin}/dayu/?lang=en&view=sample`);
+  await expect(page.getByRole("heading", { name: "Thworry/dayu" })).toBeVisible();
+  expect(await page.locator(".report-reading-guide article").count()).toBeLessThanOrEqual(2);
+  await expect(page.locator("#report-evidence")).toHaveJSProperty("open", false);
+  await expect(page.locator("#evidence-search")).toBeHidden();
+  const source = page.locator('.reading-sources a[href^="#evidence-"]').first();
+  const hash = await source.getAttribute("href");
+  if (hash === null) throw new Error("Missing reading source");
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await openReportDetail(page, "evidence");
+    await page.getByRole("searchbox").fill("does-not-exist");
+    await expect(page.locator(".evidence-explorer li")).toHaveCount(0);
+    await page.locator("#report-evidence > summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#report-evidence")).toHaveJSProperty("open", false);
+    await source.click();
+    await expect(page.locator("#report-evidence")).toHaveJSProperty("open", true);
+    await expect(page.getByRole("searchbox")).toHaveValue("");
+    await expect(page.locator(hash)).toBeVisible();
+    await expect(page.locator(hash)).toBeFocused();
+    await expect(page.locator(`${hash} details`)).toHaveJSProperty("open", true);
+  }
 });

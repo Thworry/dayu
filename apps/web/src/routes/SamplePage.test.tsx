@@ -20,7 +20,8 @@ describe("SamplePage", () => {
 
     expect(screen.getByText("Public self-check · saved snapshot")).toBeVisible();
     expect(screen.getByText(/The rules are uncalibrated/)).toBeVisible();
-    expect(screen.getByText("pnpm demo")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Start reading the report ↓" })).toHaveAttribute("href", "#reading-heading");
+    expect(screen.getByRole("link", { name: "← Back to home" })).toHaveAttribute("href", "/en");
     expect(screen.queryByRole("button", { name: "Connect GitHub" })).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="/api/"], a[href^="/en/r/"]')).toBeNull();
     expect(fetch).not.toHaveBeenCalled();

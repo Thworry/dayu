@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { maliciousText } from "./fixtures/malicious-repository.js";
 import { scanFromHome, scanToReport } from "./fixtures/real-dayu.js";
+import { openReportDetail } from "./fixtures/report-details.js";
 
 test("anonymous rules-only scan completes without GitHub login", async ({ page }) => {
   await scanToReport(page, "owner/reality-check");
@@ -31,14 +32,18 @@ for (const scenario of [
 
 test("tree truncation has its own partial-evidence caveat", async ({ page }) => {
   await scanToReport(page, "owner/tree-truncated");
+  await openReportDetail(page, "analysis");
   await expect(page.locator(".status-line")).toHaveText("Partial");
+  await openReportDetail(page, "evidence");
   await expect(page.getByText("GitHub returned an incomplete file tree", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("GitHub was still preparing the data", { exact: true })).toHaveCount(0);
 });
 
 test("statistics 202 has a distinct data-generation caveat", async ({ page }) => {
   await scanToReport(page, "owner/stats-pending");
+  await openReportDetail(page, "analysis");
   await expect(page.locator(".status-line")).toHaveText("Partial");
+  await openReportDetail(page, "evidence");
   await expect(page.getByText("GitHub was still preparing the data", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("GitHub returned an incomplete file tree", { exact: true })).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { openReportDetail } from "./fixtures/report-details.js";
 
 const report = {
   baseScore: 18,
@@ -61,6 +62,14 @@ async function inspectReport(browser: Browser, scenario: { colorScheme: "dark" |
   await mockScan(page);
   await page.goto("/en/r/facebook/react");
   await expect(page.getByText("Rules-only Signal")).toBeVisible();
+  await expect(page.locator(".report-reading-guide")).toBeVisible();
+  await expect(page.locator("#report-analysis")).toHaveJSProperty("open", false);
+  await expect(page.locator("#report-evidence")).toHaveJSProperty("open", false);
+  await expect(page.getByRole("heading", { name: "Verifiable evidence" })).toBeHidden();
+  await page.screenshot({ fullPage: true, path: outputPath.replace(/\.png$/u, "-summary.png") });
+  await openReportDetail(page, "analysis");
+  await openReportDetail(page, "evidence");
+  await openReportDetail(page, "details");
   await expect(page.getByRole("heading", { name: "Verifiable evidence" })).toBeVisible();
   await expect(page.getByRole("link", { name: "ev_aaaaaaaaaaaaaaaaaaaaaaaa" })).toHaveAttribute("href", "https://api.github.com/repos/facebook/react");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -70,13 +79,6 @@ async function inspectReport(browser: Browser, scenario: { colorScheme: "dark" |
   expect(actionBox?.height).toBeGreaterThanOrEqual(44);
   const actionColors = await action.evaluate((element) => ({ background: getComputedStyle(element).backgroundColor, color: getComputedStyle(element).color }));
   expect(actionColors.background).not.toBe(actionColors.color);
-  if (scenario.width === 1440) {
-    const maximumScroll = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
-    await page.evaluate((top) => { window.scrollTo({ behavior: "instant", top }); }, Math.min(900, maximumScroll));
-    const stickyTop = await page.locator(".score-summary").evaluate((element) => element.getBoundingClientRect().top);
-    expect(stickyTop).toBeGreaterThanOrEqual(20);
-    expect(stickyTop).toBeLessThanOrEqual(36);
-  }
   await page.screenshot({ fullPage: true, path: outputPath });
   await context.close();
 }

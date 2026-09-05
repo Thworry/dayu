@@ -22,7 +22,7 @@ export async function scanFromHome(page: Page, repository: string): Promise<Crea
   });
   await page.goto("/en");
   await page.getByLabel("GitHub repository").fill(repository);
-  await page.getByRole("button", { name: "Run a reality check" }).click();
+  await page.getByRole("button", { name: "Analyze repository" }).click();
   const response = await createdResponse;
   expect(response.status()).toBe(202);
   const created = await response.json() as CreatedScan;

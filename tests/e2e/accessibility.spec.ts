@@ -2,6 +2,7 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { baseReport, mockDayu, openBaseReport, partialReport } from "./fixtures/mock-dayu.js";
+import { openReportDetail } from "./fixtures/report-details.js";
 
 async function expectNoSeriousAxeViolations(page: Page, state: string): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
@@ -18,6 +19,12 @@ test("home, progress, base report, consent, enhanced, partial, and error pass se
       await expect(page.getByLabel("Scan progress")).toBeVisible();
     } },
     { name: "base report", setup: async (page) => { await openBaseReport(page); await expect(page.getByText("Rules-only Signal")).toBeVisible(); } },
+    { name: "expanded report", setup: async (page) => {
+      await openBaseReport(page);
+      await openReportDetail(page, "analysis");
+      await openReportDetail(page, "evidence");
+      await openReportDetail(page, "details");
+    } },
     { name: "consent", setup: async (page) => {
       await openBaseReport(page, { session: { githubUserId: 101 } });
       await expect(page.getByRole("heading", { name: "Run a second waterline check with Copilot" })).toBeVisible();
@@ -30,6 +37,7 @@ test("home, progress, base report, consent, enhanced, partial, and error pass se
     } },
     { name: "unavailable dimension", setup: async (page) => {
       await openBaseReport(page, { report: { ...baseReport, dimensionScores: { ...baseReport.dimensionScores, substance: null } } });
+      await openReportDetail(page, "analysis");
       const substanceDimension = page.locator(".dimension-list li").filter({ hasText: "Code Substance" });
       await expect(substanceDimension).toBeVisible();
       await expect(substanceDimension.getByRole("meter")).toHaveCount(0);

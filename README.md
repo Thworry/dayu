@@ -2,19 +2,17 @@
 
 [简体中文](README.zh-CN.md) · **0.x pre-beta / research preview**
 
-DAYU (大禹治水) is an evidence-first reality check for public GitHub repositories. Give it `owner/repo`; it compares visible popularity, repository substance, maintenance, community activity, and public claims, then shows the evidence behind every finding.
+DAYU (大禹治水) compares a public GitHub repository's popularity, code, maintenance, community activity, and claims. Read a short summary, then open the sources behind anything you want to check.
 
-It is closer to a weather instrument than a courtroom. DAYU can surface unusual ratios, missing signals, and claim-to-repository mismatches. It **cannot prove that stars, follows, or watches were bought**, identify intent, or label a project or maintainer as fraudulent.
+**Start here:** [Open the welcome page](https://thworry.github.io/dayu/?lang=en) · [Analyze your own repository locally](#quick-start)
 
-> Release status: this repository is a 0.x pre-beta research preview. The public Beta calibration gates have not been met. The included calibration files are small synthetic examples and support no public accuracy claim. Run `pnpm --filter @dayu/calibration evaluate` for the machine-readable status.
+The website lets you explore a [saved sample report](https://thworry.github.io/dayu/?lang=en&view=sample). It cannot scan other repositories, sign in, or call Copilot. To run a new analysis, follow the local setup below and paste a public repository URL into the running app.
 
-[Open the static preview](https://thworry.github.io/dayu/) · [Run the rules-only app locally](#quick-start)
+> Pre-beta: real-world calibration and blind review are incomplete. DAYU can flag unusual or missing signals, but cannot prove bought stars, follows, or watches, infer intent, or establish fraud. The synthetic calibration examples support no accuracy claim.
 
-The hosted preview is a fixed DAYU self-check, rendered by the same React components as local reports. Explore its five dimensions, search the evidence, follow a finding to its source, or download the full JSON. It cannot scan arbitrary repositories, sign in to GitHub, or call Copilot. Use the local app for new scans.
+![DAYU welcome page with sample and local analysis choices](docs/assets/dayu-welcome-en-desktop.png)
 
-![DAYU static pre-beta report preview in English](docs/assets/dayu-preview-en-desktop.png)
-
-> Screenshot: DAYU's own public repository, observed on September 5, 2026 at 07:36 UTC and pinned to commit `9c07a83`. The overall score is withheld; dimension signals are experimental. This demonstrates the report, not validated accuracy or proof of manipulation.
+The report starts with brief observations and a clear next step. Five dimensions, full findings, collection details, and evidence are available on demand. Source links open the relevant detail automatically; JSON exports always contain the complete snapshot.
 
 ## What it does
 
@@ -42,6 +40,8 @@ Read the full [methodology](docs/methodology.md) and [privacy model](docs/privac
 Requirements: Node.js 24+, pnpm 10, and Git.
 
 ```bash
+git clone https://github.com/Thworry/dayu.git
+cd dayu
 corepack enable
 pnpm install --frozen-lockfile
 pnpm demo
@@ -49,7 +49,7 @@ pnpm demo
 
 Open the printed loopback URL and scan a public `owner/repo`. The launcher builds the web app, starts the Fastify API and static server on `127.0.0.1`, waits for both to become ready, and stops both on Ctrl-C. No OAuth or Copilot configuration is required; the UI clearly stays in rules-only mode. Public unauthenticated GitHub rate limits can reduce a report to partial or unverifiable data.
 
-Prefer to explore without a network scan? Choose **Explore a sample report** on the home page, or open `/en/sample` (`/zh/sample` for Chinese). The bundled [public self-check snapshot](apps/web/src/data/dayu-sample.json) contains 20 evidence records. `pnpm --filter @dayu/web build:preview` builds the API-free Pages version in `apps/web/dist-preview`.
+Prefer to explore without a network scan? Choose **Explore a sample report** on the running app's home page. The local sample paths are `/en/sample` and `/zh/sample`; the hosted sample uses the separate [Pages sample URL](https://thworry.github.io/dayu/?lang=en&view=sample). The bundled [public self-check snapshot](apps/web/src/data/dayu-sample.json) contains 20 evidence records. `pnpm --filter @dayu/web build:preview` builds the API-free Pages version in `apps/web/dist-preview`.
 
 For the complete developer checks:
 
@@ -64,7 +64,14 @@ The local command is a development/research demo, not a production deployment re
 
 ## Screenshots
 
-The committed screenshots are generated from the same fixed [static preview](https://thworry.github.io/dayu/) and self-report JSON. They deliberately withhold the overall number because real cohort calibration and independent blind review are incomplete. They are not screenshots of a public live scanner.
+The welcome screenshot shows the entry choices. Report screenshots use the same [saved sample](https://thworry.github.io/dayu/?lang=en&view=sample), captured on September 5, 2026 at 07:36 UTC from commit `9c07a83`. The overall score is withheld because real cohort calibration and blind review are incomplete. These are not screenshots of a public live scanner.
+
+<details>
+<summary>English sample report</summary>
+
+![DAYU saved sample report in English](docs/assets/dayu-preview-en-desktop.png)
+
+</details>
 
 <details>
 <summary>Chinese mobile preview / 中文移动端预览</summary>

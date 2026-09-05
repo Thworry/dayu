@@ -14,6 +14,12 @@ import { EvidencePanel } from "../components/EvidencePanel.js";
 import { EnhancedDelta } from "../components/EnhancedDelta.js";
 import { ScoreSummary } from "../components/ScoreSummary.js";
 import { ReportOverview } from "../components/ReportOverview.js";
+import { ReportReadingGuide } from "../components/ReportReadingGuide.js";
+import { readingCopy } from "../components/report-reading-copy.js";
+import { revealReportTarget } from "../components/report-disclosure.js";
+import { isStaticPreview } from "../app/build-mode.js";
+import { previewPath } from "../app/preview-navigation.js";
+import "../styles/report-reading.css";
 
 function record(value: Evidence["value"]): Record<string, Evidence["value"]> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
@@ -73,9 +79,31 @@ export function ReportPage({ copilotApi = defaultCopilotApi, initialReview, jobI
   const [review, setReview] = useState<NoChangeReview | undefined>(() => parseNoChangeReview(initialReview, report));
   const idempotencyKey = useRef<string | null>(null);
   const terminalStatus = useRef<HTMLDivElement>(null);
+  const reportRoot = useRef<HTMLElement>(null);
   const enhancementAbort = useRef<AbortController | null>(null);
   const enhancementGeneration = useRef(0);
   const route = freshScanPath(locale, displayReport.repository.fullName);
+
+  useEffect(() => {
+    const reveal = (hash: string): void => {
+      if (!hash.startsWith("#")) return;
+      let id: string;
+      try { id = decodeURIComponent(hash.slice(1)); } catch { return; }
+      const target = document.getElementById(id);
+      if (target !== null && reportRoot.current?.contains(target) === true) revealReportTarget(target);
+    };
+    const onHashChange = (): void => { reveal(window.location.hash); };
+    const onClick = (event: MouseEvent): void => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      const href = anchor?.getAttribute("href");
+      if (href !== undefined && href !== null) reveal(href);
+    };
+    onHashChange();
+    window.addEventListener("hashchange", onHashChange);
+    document.addEventListener("click", onClick);
+    return () => { window.removeEventListener("hashchange", onHashChange); document.removeEventListener("click", onClick); };
+  }, [locale, report.repository.fullName, report.sourceCommit]);
 
   useEffect(() => {
     enhancementGeneration.current += 1;
@@ -210,16 +238,14 @@ export function ReportPage({ copilotApi = defaultCopilotApi, initialReview, jobI
   }
 
   return (
-    <main className="report-main" id="main-content" tabIndex={-1}>
+    <main className="report-main report-reading" id="main-content" ref={reportRoot} tabIndex={-1}>
       <div className="report-layout">
         <aside className="report-summary-column">
           <ScoreSummary description={repositoryDescription(displayReport)} locale={locale} report={displayReport} />
         </aside>
         <div className="report-detail-column">
-          <ReportOverview locale={locale} report={displayReport} />
           <Disclaimer locale={locale} />
-          <DimensionList locale={locale} report={displayReport} />
-          <BalancedFindings locale={locale} report={displayReport} />
+          <ReportReadingGuide locale={locale} report={displayReport} />
           <div className="share-actions">
             <div>
               <button disabled={shareState === "downloading"} onClick={() => { void downloadCard(); }} type="button">
@@ -254,10 +280,21 @@ export function ReportPage({ copilotApi = defaultCopilotApi, initialReview, jobI
           {enhancedMetadata === null ? null : (
             <div className="copilot-success-status" ref={terminalStatus} tabIndex={-1}><EnhancedDelta enhancedScore={displayReport.score} locale={locale} metadata={enhancedMetadata} rulesScore={displayReport.baseScore} unchanged={review !== undefined} /></div>
           )}
-          <DataCoverage locale={locale} report={displayReport} />
-          <EvidencePanel locale={locale} report={displayReport} />
+          <details className="report-disclosure" id="report-analysis">
+            <summary>{readingCopy(locale, "analysis")}<span>{readingCopy(locale, "analysisNote")}</span></summary>
+            <div className="report-disclosure-body">
+              <ReportOverview locale={locale} report={displayReport} />
+              <DimensionList locale={locale} report={displayReport} />
+              <BalancedFindings locale={locale} report={displayReport} />
+              <DataCoverage locale={locale} report={displayReport} />
+            </div>
+          </details>
+          <details className="report-disclosure" id="report-evidence">
+            <summary>{readingCopy(locale, "evidence")}<span>{readingCopy(locale, "evidenceNote")}</span></summary>
+            <div className="report-disclosure-body"><EvidencePanel locale={locale} report={displayReport} /></div>
+          </details>
           <nav aria-label={t(locale, "report.back")} className="report-links">
-            <a href={sample ? "https://github.com/Thworry/dayu#quick-start" : `/${locale}`}>{t(locale, sample ? "report.runLocally" : "report.back")}</a>
+            <a href={sample && isStaticPreview ? previewPath(locale, "home", "local-guide") : `/${locale}`}>{t(locale, sample && isStaticPreview ? "report.runLocally" : "report.back")}</a>
             <a href={evidenceFeedbackUrl(displayReport)}>{t(locale, "report.feedback")}</a>
           </nav>
         </div>

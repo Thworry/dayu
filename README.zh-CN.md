@@ -2,19 +2,17 @@
 
 [English](README.md) · **0.x 预 Beta / 研究预览版**
 
-大禹治水（DAYU — Repo Reality Check）是一款面向公开 GitHub 仓库的证据型体检工具。输入 `owner/repo`，它会对照人气、内容实质、维护状态、社区活动和公开说法，再把每条判断背后的证据摊开给你看。
+大禹治水（DAYU）帮你对照公开 GitHub 仓库的热度、代码、维护、社区和宣传。先读简短发现，有疑问再打开对应来源。
 
-它更像水位仪，不是法槌。DAYU 能提示比例反常、信号缺失和“宣传与仓库现状对不上”等情况，但**不能证明 star、follow 或 watch 是买来的**，不能推断动机，也不会给项目或维护者扣上“造假”的帽子。
+**从这里开始：** [打开欢迎页](https://thworry.github.io/dayu/?lang=zh) · [在本地分析自己的仓库](#本地开始)
 
-> 发布状态：当前是 0.x 预 Beta 研究预览版，尚未达到公开 Beta 的校准门槛。仓库里的校准数据只是小规模合成示例，不能用于宣传准确率。运行 `pnpm --filter @dayu/calibration evaluate` 可查看机器可读的真实状态。
+网站可以浏览一份[已保存的样例报告](https://thworry.github.io/dayu/?lang=zh&view=sample)，不能扫描其他仓库、登录 GitHub 或调用 Copilot。要发起新分析，请按下方步骤启动本地应用，再把公开仓库地址粘贴到首页。
 
-[打开静态预览](https://thworry.github.io/dayu/?lang=zh) · [在本地运行仅规则版](#本地开始)
+> 当前是预 Beta，真实样本校准和盲审尚未完成。DAYU 能提示信号反常或缺失，但不能证明 star、follow 或 watch 是买来的，不能推断动机或认定造假。合成校准示例不支持任何准确率宣传。
 
-线上预览是 DAYU 对自身仓库的固定快照，与本地报告使用同一套 React 组件。你可以查看五维信号、检索证据、从发现跳到来源，也可以下载完整 JSON。预览不能扫描任意仓库、不能登录 GitHub，也不会调用 Copilot；新扫描请在本地运行。
+![DAYU 欢迎页：查看样例或在本地分析仓库](docs/assets/dayu-welcome-zh-desktop.png)
 
-![DAYU 英文静态预 Beta 报告预览](docs/assets/dayu-preview-en-desktop.png)
-
-> 截图说明：DAYU 自身公开仓库的快照，采集于 2026 年 9 月 5 日北京时间 15:36，固定在 `9c07a83` 提交。预览不提供总分，分维度信号也只是实验结果；它不代表准确率已经验证，更不能证明操纵行为。
+报告先展示简短发现和下一步按钮。五维分析、全部发现、采集详情和证据可以按需展开；点击来源会自动定位到对应证据。下载的 JSON 始终包含完整快照。
 
 ## 能做什么
 
@@ -42,6 +40,8 @@ DAYU 只分析公开仓库。v1 明确不做私有仓库、全站排行榜、维
 需要 Node.js 24+、pnpm 10 和 Git。
 
 ```bash
+git clone https://github.com/Thworry/dayu.git
+cd dayu
 corepack enable
 pnpm install --frozen-lockfile
 pnpm demo
@@ -49,7 +49,7 @@ pnpm demo
 
 打开命令行打印的本机地址，然后输入公开的 `owner/repo`。启动器会构建前端，在 `127.0.0.1` 上启动 Fastify API 和静态服务器，等待两端就绪，并在按下 Ctrl-C 时一起关闭。无需配置 OAuth 或 Copilot，界面会清楚保持“仅规则”模式。GitHub 未登录公共 API 的限流可能让报告退化为部分数据或“无法验证”。
 
-想先体验、不发起联网扫描？点击首页的样例入口，或直接打开 `/zh/sample`（英文为 `/en/sample`）。内置的[公开自检快照](apps/web/src/data/dayu-sample.json)有 20 条证据。执行 `pnpm --filter @dayu/web build:preview` 可构建不连接 API 的 Pages 版本，输出到 `apps/web/dist-preview`。
+想先体验、不发起联网扫描？在启动后的首页点击“先看看样例报告”。`/zh/sample` 和 `/en/sample` 是本地应用路径；线上使用单独的 [Pages 样例链接](https://thworry.github.io/dayu/?lang=zh&view=sample)。内置的[公开自检快照](apps/web/src/data/dayu-sample.json)有 20 条证据。执行 `pnpm --filter @dayu/web build:preview` 可构建不连接 API 的 Pages 版本，输出到 `apps/web/dist-preview`。
 
 如需执行完整开发检查：
 
@@ -64,7 +64,14 @@ pnpm --filter @dayu/calibration evaluate
 
 ## 截图
 
-已提交的截图来自同一份[静态预览](https://thworry.github.io/dayu/?lang=zh)和固定自检 JSON。因为真实同类组校准与独立盲审尚未完成，预览特意不输出综合数字；它也不是公开在线扫描器的截图。
+欢迎页截图展示两个使用入口。报告截图使用同一份[已保存样例](https://thworry.github.io/dayu/?lang=zh&view=sample)：采集于 2026 年 9 月 5 日北京时间 15:36，固定到 `9c07a83` 提交。因为真实同类组校准与盲审尚未完成，样例不提供总分；这些不是公开在线扫描器的截图。
+
+<details>
+<summary>英文样例报告</summary>
+
+![DAYU 英文历史样例报告](docs/assets/dayu-preview-en-desktop.png)
+
+</details>
 
 <details>
 <summary>中文移动端预览</summary>
