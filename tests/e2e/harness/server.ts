@@ -56,8 +56,8 @@ function collected(ref: RepositoryRef): CollectedRepository {
     observation(repository, "repository.tree", {
       apiTruncated: treePartial,
       completeForNegativeEvidence: !treePartial,
-      files: [{ path: "README.md", size: 200, type: "blob" }, { path: "src/index.ts", size: 500, type: "blob" }],
-      observedEntries: 2,
+      files: [{ path: "README.md", size: 200, type: "blob" }, { path: "src/index.ts", size: 500, type: "blob" }, { path: "package.json", size: 100, type: "blob" }],
+      observedEntries: 3,
     }, treePartial ? { limitations: ["github_tree_truncated"], status: "partial" } : {}),
     observation(repository, "repository.file_content", { bytes: 52, path: "README.md", text: "# Product\nInstall with pnpm. Releases are published." }),
     observation(repository, "repository.languages", { TypeScript: 1_000 }),
@@ -112,6 +112,11 @@ const analyze: EnhancementAnalyzer = (input) => {
     evidenceIds: [evidence.id], risk: 0, rubricId: "claims.install", verdict: "supported",
     zh: "[支持] 公开证据支持这项有限判断。",
   };
+  if (evidence.repository.fullName.endsWith("/no-change")) {
+    finding.verdict = "unverifiable";
+    finding.en = "[UNVERIFIABLE] The public evidence does not establish this claim.";
+    finding.zh = "[无法验证] 公开证据不足以核实这项说法。";
+  }
   return Promise.resolve({ findings: [finding], model: "gpt-5-mini" });
 };
 

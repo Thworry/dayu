@@ -1,6 +1,9 @@
 import type { ReportSnapshot } from "@dayu/evidence-schema";
 import { t, type Locale, type MessageKey } from "@dayu/report-i18n";
 
+import { evidenceCopy, evidenceStatuses, evidenceStatusCounts, evidenceStatusLabel, observationLabel } from "./evidence-presentation.js";
+import "../styles/evidence-explorer.css";
+
 const statusKeys = {
   complete: "report.status.complete",
   not_applicable: "report.status.not_applicable",
@@ -10,9 +13,27 @@ const statusKeys = {
 } as const satisfies Record<ReportSnapshot["dataStatus"], MessageKey>;
 
 export function DataCoverage({ locale, report }: { locale: Locale; report: ReportSnapshot }): React.JSX.Element {
+  const counts = evidenceStatusCounts(report.evidence);
+  const total = report.evidence.length;
+  const distribution = evidenceStatuses.map((status, index) => ({
+    status,
+    width: total === 0 ? 0 : counts[status] / total * 100,
+    start: total === 0 ? 0 : evidenceStatuses.slice(0, index).reduce((sum, previous) => sum + counts[previous], 0) / total * 100,
+  }));
   return (
-    <section aria-labelledby="coverage-heading" className="coverage-section">
+    <section aria-labelledby="coverage-heading" className="coverage-section" id="coverage">
       <div className="section-heading"><span>04</span><h2 id="coverage-heading">{t(locale, "report.coverage")}</h2></div>
+      <div className="evidence-coverage">
+        <h3>{evidenceCopy(locale, "collection")} <span>{total}</span></h3>
+        <p>{evidenceCopy(locale, "collectionNote")}</p>
+        {total === 0 ? <p>{evidenceCopy(locale, "noRecords")}</p> : <svg aria-hidden="true" className="evidence-distribution" preserveAspectRatio="none" viewBox="0 0 100 8">
+          {distribution.filter((segment) => segment.width > 0).map(({ status, start, width }) => <rect className={`is-${status}`} height={8} key={status} width={width} x={start} y={0} />)}
+        </svg>}
+        <dl className="evidence-status-counts">
+          {evidenceStatuses.map((status) => <div className={`is-${status}`} key={status}><dt><span aria-hidden="true" />{evidenceStatusLabel(locale, status)}</dt><dd>{counts[status]}</dd></div>)}
+        </dl>
+        <p className="evidence-coverage-note">{evidenceCopy(locale, "completeNote")}</p>
+      </div>
       <div className="coverage-grid">
         <div>
           <h3>{t(locale, "report.dataStatus")}</h3>
@@ -22,7 +43,7 @@ export function DataCoverage({ locale, report }: { locale: Locale; report: Repor
           <h3>{t(locale, "report.missingSignals")}</h3>
           {report.missingSignals.length === 0
             ? <p>{t(locale, "report.noMissingSignals")}</p>
-            : <ul>{report.missingSignals.map((signal) => <li key={signal}><code>{signal}</code></li>)}</ul>}
+            : <ul>{report.missingSignals.map((signal) => <li key={signal}>{observationLabel(locale, signal)}</li>)}</ul>}
         </div>
         <div>
           <h3>{t(locale, "report.versions")}</h3>

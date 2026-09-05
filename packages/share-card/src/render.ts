@@ -69,8 +69,17 @@ export function measuredLines(context: DrawingContext, value: string, maxWidth: 
     if (lines.length === maxLines - 1) {
       return [...lines, ellipsize(context, `${current}${parts.slice(index).join("")}`, maxWidth)];
     }
-    lines.push(current.trimEnd());
-    current = part.trimStart();
+    const wordBoundary = current.lastIndexOf(" ");
+    if (part.trim() === "") {
+      lines.push(current.trimEnd());
+      current = "";
+    } else if (wordBoundary > 0 && wordBoundary >= current.length / 2) {
+      lines.push(current.slice(0, wordBoundary).trimEnd());
+      current = `${current.slice(wordBoundary + 1)}${part}`;
+    } else {
+      lines.push(current.trimEnd());
+      current = part.trimStart();
+    }
   }
   if (current !== "" && lines.length < maxLines) lines.push(current.trimEnd());
   return lines;
@@ -126,8 +135,8 @@ export async function renderShareCard(report: ReportSnapshot, locale: Locale): P
   const unscored = report.scoreKind === "facts_only" || report.scoreKind === "insufficient_evidence" || report.score === null;
   if (unscored) {
     context.fillStyle = "#b04a3e";
-    context.font = "750 50px ui-sans-serif, sans-serif";
-    context.fillText(t(locale, "report.insufficient"), 84, 390);
+    context.font = "750 40px ui-sans-serif, sans-serif";
+    drawMeasuredText(context, t(locale, report.scoreKind === "facts_only" ? "report.factsOnly" : "report.insufficient"), 84, 370, 530, 46, 2);
   } else {
     context.fillStyle = "#071c24";
     context.font = "760 112px ui-sans-serif, sans-serif";
@@ -140,8 +149,11 @@ export async function renderShareCard(report: ReportSnapshot, locale: Locale): P
   context.fillStyle = "#071c24";
   context.font = "700 24px ui-sans-serif, sans-serif";
   context.fillText(t(locale, "report.confidence"), 680, 310);
-  context.font = "760 72px ui-sans-serif, sans-serif";
-  context.fillText(`${String(report.confidence)}%`, 680, 405);
+  context.font = "760 56px ui-sans-serif, sans-serif";
+  context.fillText(`${String(report.confidence)}%`, 680, 375);
+  context.fillStyle = "#36545e";
+  context.font = "500 17px ui-sans-serif, sans-serif";
+  drawMeasuredText(context, t(locale, "report.share.confidenceContext"), 680, 415, 432, 22, 3);
 
   context.fillStyle = "#36545e";
   context.font = "500 18px ui-sans-serif, sans-serif";

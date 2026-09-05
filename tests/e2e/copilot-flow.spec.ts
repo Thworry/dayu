@@ -15,7 +15,21 @@ test("Copilot consent succeeds while the rules report remains visible", async ({
   await consent(page);
   await expect(page.getByRole("heading", { name: "What changed after enhancement" })).toBeVisible();
   await expect(page.getByText("gpt-5-mini")).toBeVisible();
-  await expect(page.getByText("Enhanced Signal")).toBeVisible();
+  await expect(page.getByText("Copilot-enhanced Signal")).toBeVisible();
+});
+
+test("a completed no-change review survives language switching without a second Copilot request", async ({ page }) => {
+  let enhancements = 0;
+  page.on("request", (request) => { if (request.method() === "POST" && new URL(request.url()).pathname.endsWith("/copilot")) enhancements += 1; });
+  await bootstrapSession(page, "user-a");
+  await scanToReport(page, "owner/no-change");
+  await consent(page);
+  await expect(page.getByRole("heading", { name: "Review complete · score unchanged" })).toBeVisible();
+  await page.locator(".locale-switch").click();
+  await expect(page.getByRole("heading", { name: "复核完成 · 分数未变" })).toBeVisible();
+  await expect(page.getByText("[无法验证] 公开证据不足以核实这项说法。")).toBeVisible();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  expect(enhancements).toBe(1);
 });
 
 for (const scenario of [
@@ -50,7 +64,7 @@ test("authenticated user B cannot enhance user A's claimed job or receive enhanc
   await bootstrapSession(pageA, "user-a");
   const created = await scanToReport(pageA, "owner/reality-check");
   await consent(pageA);
-  await expect(pageA.getByText("Enhanced Signal")).toBeVisible();
+  await expect(pageA.getByText("Copilot-enhanced Signal")).toBeVisible();
   const sessionB = await bootstrapSession(pageB, "user-b");
   const denied = await pageB.evaluate(async ({ csrfToken, jobId }) => {
     const response = await fetch(`/api/scans/${jobId}/copilot`, {

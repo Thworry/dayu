@@ -5,7 +5,7 @@ const typedFiles = ["**/*.ts", "**/*.tsx"];
 
 export default [
   {
-    ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**"],
+    ignores: ["**/dist/**", "**/dist-preview/**", "**/coverage/**", "**/node_modules/**", ".playwright-cli/**"],
   },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked.map((config) => ({

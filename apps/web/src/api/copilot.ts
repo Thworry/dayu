@@ -1,5 +1,6 @@
 import type { ReportSnapshot } from "@dayu/evidence-schema";
 import { reportSnapshotSchema } from "@dayu/evidence-schema/report";
+import { z } from "zod";
 
 export type CopilotErrorCode =
   | "copilot_account_daily_limit"
@@ -37,11 +38,61 @@ export interface EnhancedMetadata {
   rubricVersion: string;
 }
 
+const reviewBindingSchema = z.object({
+  repository: reportSnapshotSchema.shape.repository,
+  sourceCommit: reportSnapshotSchema.shape.sourceCommit,
+  rulesVersion: reportSnapshotSchema.shape.rulesVersion,
+  collectorVersion: reportSnapshotSchema.shape.collectorVersion,
+  createdAt: reportSnapshotSchema.shape.createdAt,
+});
+const noChangeReviewSchema = reviewBindingSchema.extend({
+  schemaVersion: reportSnapshotSchema.shape.reportVersion,
+  reason: reportSnapshotSchema.shape.rulesVersion.refine((value) => value === "no_scorable_judgments"),
+  metadata: reportSnapshotSchema.shape.copilot.unwrap(),
+}).strict();
+
+/** A completed qualitative review, kept separate from the unchanged rules report. */
+export interface NoChangeReview {
+  schemaVersion: "1";
+  reason: "no_scorable_judgments";
+  repository: ReportSnapshot["repository"];
+  sourceCommit: string;
+  rulesVersion: string;
+  collectorVersion: string;
+  createdAt: string;
+  metadata: EnhancedMetadata;
+}
+
+export function sameReportBinding(left: ReportSnapshot, right: ReportSnapshot): boolean {
+  return left.repository.id === right.repository.id && left.repository.fullName === right.repository.fullName
+    && left.repository.defaultBranch === right.repository.defaultBranch && left.sourceCommit === right.sourceCommit
+    && left.rulesVersion === right.rulesVersion && left.collectorVersion === right.collectorVersion && left.createdAt === right.createdAt;
+}
+
+export function parseNoChangeReview(value: unknown, report: ReportSnapshot): NoChangeReview | undefined {
+  if (report.scoreKind === "enhanced" || report.copilot !== undefined) return undefined;
+  const parsed = noChangeReviewSchema.safeParse(value);
+  if (!parsed.success) return undefined;
+  const review = parsed.data;
+  if (review.repository.id !== report.repository.id || review.repository.fullName !== report.repository.fullName
+    || review.repository.defaultBranch !== report.repository.defaultBranch || review.sourceCommit !== report.sourceCommit
+    || review.rulesVersion !== report.rulesVersion || review.collectorVersion !== report.collectorVersion || review.createdAt !== report.createdAt) return undefined;
+  const ids = new Set(report.evidence.map((evidence) => evidence.id));
+  if (new Set(review.metadata.findings.map((finding) => finding.rubricId)).size !== review.metadata.findings.length
+    || review.metadata.findings.some((finding) => [...finding.evidenceIds, ...finding.counterEvidenceIds].some((id) => !ids.has(id)))) return undefined;
+  return { ...review, reason: "no_scorable_judgments" };
+}
+
+export function createNoChangeReview(report: ReportSnapshot, metadata: EnhancedMetadata): NoChangeReview | undefined {
+  return parseNoChangeReview({ ...reviewBindingSchema.parse(report), schemaVersion: "1", reason: "no_scorable_judgments", metadata }, report);
+}
+
 export interface EnhancementResponse {
   baseReport: ReportSnapshot;
   enhancedReport: ReportSnapshot | null;
   errorCode?: CopilotErrorCode;
   metadata?: EnhancedMetadata;
+  noChangeReason?: "no_scorable_judgments";
 }
 
 export interface AuthSessionResponse {
@@ -97,23 +148,8 @@ async function json(response: Response): Promise<unknown> {
 }
 
 function parseMetadata(value: unknown): EnhancedMetadata | undefined {
-  const item = record(value);
-  if (item === null || typeof item.model !== "string" || typeof item.promptVersion !== "string" || typeof item.rubricVersion !== "string" || !Array.isArray(item.findings)) return undefined;
-  const findings = item.findings.flatMap((candidate): CopilotFindingCopy[] => {
-    const finding = record(candidate);
-    if (
-      finding === null || typeof finding.en !== "string" || typeof finding.zh !== "string"
-      || typeof finding.rubricId !== "string" || typeof finding.verdict !== "string"
-      || !Array.isArray(finding.evidenceIds) || !finding.evidenceIds.every((id) => typeof id === "string")
-      || !Array.isArray(finding.counterEvidenceIds) || !finding.counterEvidenceIds.every((id) => typeof id === "string")
-    ) return [];
-    return [{
-      counterEvidenceIds: finding.counterEvidenceIds, en: finding.en,
-      evidenceIds: finding.evidenceIds, rubricId: finding.rubricId,
-      verdict: finding.verdict, zh: finding.zh,
-    }];
-  });
-  return { findings, model: item.model, promptVersion: item.promptVersion, rubricVersion: item.rubricVersion };
+  const parsed = reportSnapshotSchema.shape.copilot.unwrap().safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function parseEnhancement(value: unknown): EnhancementResponse {
@@ -125,11 +161,16 @@ function parseEnhancement(value: unknown): EnhancementResponse {
   const code = typeof body.errorCode === "string" && errorCodes.has(body.errorCode as CopilotErrorCode)
     ? body.errorCode as CopilotErrorCode : undefined;
   const metadata = parseMetadata(body.metadata);
+  if (body.noChangeReason === "no_scorable_judgments"
+    && (enhanced !== null || code !== undefined || metadata === undefined || createNoChangeReview(base.data, metadata) === undefined)) {
+    throw new CopilotApiError("copilot_invalid_output", 502);
+  }
   return {
     baseReport: base.data,
     enhancedReport: enhanced === null ? null : enhanced.data,
     ...(code === undefined ? {} : { errorCode: code }),
     ...(metadata === undefined ? {} : { metadata }),
+    ...(body.noChangeReason === "no_scorable_judgments" ? { noChangeReason: "no_scorable_judgments" as const } : {}),
   };
 }
 

@@ -10,26 +10,28 @@ It is closer to a weather instrument than a courtroom. DAYU can surface unusual 
 
 [Open the static preview](https://thworry.github.io/dayu/) · [Run the rules-only app locally](#quick-start)
 
-The hosted preview is a fixed DAYU self-check: it cannot scan arbitrary repositories, sign in to GitHub, or call Copilot. The interactive scanner runs locally so its limitations and public-data behavior remain directly testable without presenting an uncalibrated service as production.
+The hosted preview is a fixed DAYU self-check, rendered by the same React components as local reports. Explore its five dimensions, search the evidence, follow a finding to its source, or download the full JSON. It cannot scan arbitrary repositories, sign in to GitHub, or call Copilot. Use the local app for new scans.
 
 ![DAYU static pre-beta report preview in English](docs/assets/dayu-preview-en-desktop.png)
 
-> Screenshot: uncalibrated rules-only snapshot of DAYU's own public repository, pinned to commit `e327383`. It demonstrates the report structure, not validated accuracy or proof of manipulation.
+> Screenshot: DAYU's own public repository, observed on September 5, 2026 at 07:36 UTC and pinned to commit `9c07a83`. The overall score is withheld; dimension signals are experimental. This demonstrates the report, not validated accuracy or proof of manipulation.
 
 ## What it does
 
 - Scans public repositories without requiring GitHub login.
 - Produces a bilingual Chinese/English rules report from public GitHub data.
 - Separates five dimensions: popularity 25%, substance 25%, maintenance 20%, community 15%, and claims 15%.
-- Shows data coverage, repository-type corrections, missing signals, counter-evidence, and stable Evidence IDs.
+- Shows observed public counts, data availability, repository-type corrections, missing signals, counter-evidence, and searchable Evidence IDs. Missing values stay blank, not zero.
 - Can optionally ask the signed-in user's own GitHub Copilot entitlement to review a bounded evidence packet. The base report works without Copilot.
-- Creates a local share-card PNG; shared links trigger a fresh scan instead of publishing a permanent AI report.
+- Exports a share-card PNG or the complete evidence JSON locally; shared links trigger a fresh scan instead of publishing a permanent AI report.
 
 GitHub's `watchers_count` is a historical alias for stars. DAYU reads stars from `stargazers_count` and true watches from `subscribers_count`; it never presents `watchers_count` as watchers.
 
 ## Current boundaries
 
 DAYU analyzes public repositories only. The first release deliberately excludes private repositories, global rankings, maintainer-follower authenticity scores, permanent hosted AI reports, and claims that a project “bought stars.” Scores are withheld when usable coverage is below 60%; the report becomes facts-only or “insufficient evidence” instead of inventing precision.
+
+An uncertain repository classification also withholds scores. Evidence confidence is a heuristic of sufficiency, not a measured accuracy or coverage percentage. Five-dimensional bars show experimental risk: higher means more to check, not better quality. Copilot judgments marked “unverifiable” or “not applicable” cannot increase confidence; a review with no scorable judgments leaves the base report unchanged.
 
 The optional enhanced result is 70% deterministic rules and up to 30% user-authorized Copilot analysis. Copilot receives selected, size-bounded evidence with untrusted repository text treated as data, has no tools, and must cite prompt-visible Evidence IDs. It is disabled unless the host configures GitHub OAuth and the user explicitly consents. DAYU does not request repository read/write, organization, email, or private-repository scopes for enhancement.
 
@@ -46,6 +48,8 @@ pnpm demo
 ```
 
 Open the printed loopback URL and scan a public `owner/repo`. The launcher builds the web app, starts the Fastify API and static server on `127.0.0.1`, waits for both to become ready, and stops both on Ctrl-C. No OAuth or Copilot configuration is required; the UI clearly stays in rules-only mode. Public unauthenticated GitHub rate limits can reduce a report to partial or unverifiable data.
+
+Prefer to explore without a network scan? Choose **Explore a sample report** on the home page, or open `/en/sample` (`/zh/sample` for Chinese). The bundled [public self-check snapshot](apps/web/src/data/dayu-sample.json) contains 20 evidence records. `pnpm --filter @dayu/web build:preview` builds the API-free Pages version in `apps/web/dist-preview`.
 
 For the complete developer checks:
 
@@ -66,6 +70,13 @@ The committed screenshots are generated from the same fixed [static preview](htt
 <summary>Chinese mobile preview / 中文移动端预览</summary>
 
 ![DAYU static pre-beta report preview in Chinese](docs/assets/dayu-preview-zh-mobile.png)
+
+</details>
+
+<details>
+<summary>Searchable evidence / 可检索证据</summary>
+
+![DAYU evidence explorer in Chinese](docs/assets/dayu-evidence-zh-desktop.png)
 
 </details>
 

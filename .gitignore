@@ -1,3 +1,5 @@
 **/dist/
 **/coverage/
 output/playwright/
+.playwright-cli/
+**/dist-preview/

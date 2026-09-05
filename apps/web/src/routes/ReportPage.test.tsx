@@ -4,13 +4,13 @@ import "@testing-library/jest-dom/vitest";
 
 import type { Finding, ReportSnapshot } from "@dayu/evidence-schema";
 import type { CopilotApi, EnhancementResponse } from "../api/copilot.js";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { reportFixture } from "../test/reportFixture.js";
 import { githubApiSource } from "../components/EvidencePanel.js";
-import { ReportPage } from "./ReportPage.js";
+import { evidenceFeedbackUrl, ReportPage } from "./ReportPage.js";
 
 const evidenceId = reportFixture.evidence[0]?.id ?? "ev_aaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -105,8 +105,54 @@ describe("ReportPage", () => {
 
   it("uses score kind as the unscored source of truth", () => {
     render(<ReportPage locale="en" report={fixture({ score: 18, scoreKind: "facts_only" })} />);
-    expect(screen.getByText("Insufficient evidence")).toBeVisible();
+    expect(screen.getByText("Facts only")).toBeVisible();
     expect(screen.queryByTestId("precise-score")).not.toBeInTheDocument();
+  });
+
+  it("explains risk direction and offers bounded public feedback without raw evidence", () => {
+    render(<ReportPage locale="en" report={fixture()} />);
+    expect(screen.getByText(/Higher means more to check/)).toBeVisible();
+    expect(screen.getAllByRole("link", { name: /Inspect related evidence/ })[0]).toHaveAttribute("href", `#evidence-${evidenceId}`);
+    const url = new URL(evidenceFeedbackUrl(fixture()));
+    expect(url.origin + url.pathname).toBe("https://github.com/Thworry/dayu/issues/new");
+    expect([...url.searchParams.keys()].sort()).toEqual(["commit", "evidence", "repository", "template"]);
+    expect(url.searchParams.get("template")).toBe("evidence-dispute.yml");
+    expect(url.searchParams.get("evidence")).toBe(evidenceId);
+  });
+
+  it("downloads a report snapshot without requesting authentication in sample mode", async () => {
+    const getSession = vi.fn();
+    const copilotApi: CopilotApi = { enhance: vi.fn(), getSession };
+    const blobs: Blob[] = [];
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn((blob: Blob) => { blobs.push(blob); return "blob:sample"; }) });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<ReportPage copilotApi={copilotApi} jobId="not-a-live-job" locale="en" report={fixture()} sample />);
+    expect(screen.queryByRole("button", { name: "Copy fresh-scan link" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Download evidence JSON" }));
+    expect(getSession).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
+    expect(blobs[0]?.type).toBe("application/json");
+    const blob = blobs[0];
+    if (blob === undefined) throw new Error("missing_download");
+    const text = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => { resolve(typeof reader.result === "string" ? reader.result : ""); }; reader.readAsText(blob); });
+    expect(JSON.parse(text)).toEqual(fixture());
+  });
+
+  it("treats non-scorable Copilot observations as a successful unchanged review", async () => {
+    const base = fixture();
+    const api: CopilotApi = {
+      getSession: () => Promise.resolve({ kind: "authenticated", session: { authenticated: true, csrfToken: "b".repeat(43), githubUserId: 101 } }),
+      enhance: () => Promise.resolve({ baseReport: base, enhancedReport: null, noChangeReason: "no_scorable_judgments", metadata: { model: "test", promptVersion: "test", rubricVersion: "test", findings: [{ en: "Unable to verify delivery.", zh: "无法验证交付。", evidenceIds: [evidenceId], counterEvidenceIds: [], rubricId: "claims.install", verdict: "unverifiable" }] } }),
+    };
+    render(<ReportPage copilotApi={api} jobId="job" locale="en" report={base} />);
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: /run enhanced analysis/i }));
+    expect(await screen.findByText("Review complete · score unchanged")).toBeVisible();
+    expect(screen.getByText("Rules-only Signal")).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Unable to verify delivery.")).toBeVisible();
+    expect(screen.queryByText("Copilot-enhanced Signal")).not.toBeInTheDocument();
   });
 
   it("uses localized repository routes for copied fresh-scan links", async () => {
@@ -181,7 +227,7 @@ describe("ReportPage", () => {
     });
     expect(await screen.findByText("Copilot-enhanced Signal")).toBeVisible();
     expect(screen.getByText("[SUPPORTED] Stored English finding.")).toBeVisible();
-    expect(screen.getByText("What changed after enhancement").closest(".copilot-success-status")).toHaveFocus();
+    await waitFor(() => { expect(screen.getByText("What changed after enhancement").closest(".copilot-success-status")).toHaveFocus(); });
     expect(enhance).toHaveBeenCalledTimes(1);
   });
 
