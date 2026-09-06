@@ -21,7 +21,7 @@
     "@dayu/evidence-schema": "workspace:*",
     "@dayu/repository-taxonomy": "workspace:*",
     "@dayu/scoring-core": "workspace:*",
-    "zod": "^4.1.5"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
