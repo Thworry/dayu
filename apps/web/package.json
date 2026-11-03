@@ -22,7 +22,7 @@
     "react-dom": "latest",
     "react-router-dom": "latest",
     "vite": "^7.3.6",
-    "zod": "^4.1.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",
